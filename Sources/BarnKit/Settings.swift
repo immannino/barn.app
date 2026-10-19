@@ -105,6 +105,10 @@ final class Settings: ObservableObject {
     @Published var hotKeyErrors: Set<String> = []
     /// True while a shortcut field is capturing keys; global hotkeys are unregistered meanwhile.
     @Published var isRecordingHotKey = false
+    /// The menu bar icon is squeezed out (usually behind the notch), so macOS isn't drawing it.
+    @Published var menuBarIconHidden = false
+    /// Settings has already opened once on its own to explain a hidden menu bar icon.
+    @Published var hiddenIconExplained: Bool { didSet { defaults.set(hiddenIconExplained, forKey: "hiddenIconExplained") } }
 
     private init() {
         switcherHotKey = Self.load("switcherHotKey", default: KeyCombo.switcherDefault)
@@ -116,6 +120,7 @@ final class Settings: ObservableObject {
         let d = UserDefaults.standard
         d.register(defaults: ["notifyWaiting": true, "notifyReady": false, "notificationSound": true])
         welcomed = d.bool(forKey: "welcomed")
+        hiddenIconExplained = d.bool(forKey: "hiddenIconExplained")
         notifyWaiting = d.bool(forKey: "notifyWaiting")
         notifyReady = d.bool(forKey: "notifyReady")
         notificationSound = d.bool(forKey: "notificationSound")

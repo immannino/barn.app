@@ -6,13 +6,15 @@ import SwiftUI
 @MainActor
 final class DeckController {
     private let store: AgentStore
+    private let onSettings: () -> Void
     private var panel: NSPanel?
     private var host: NSHostingController<DeckView>?
     private var sizing: AnyCancellable?
     private static let visibleKey = "deckVisible"
 
-    init(store: AgentStore) {
+    init(store: AgentStore, onSettings: @escaping () -> Void) {
         self.store = store
+        self.onSettings = onSettings
         if UserDefaults.standard.bool(forKey: Self.visibleKey) { show() }
     }
 
@@ -44,10 +46,14 @@ final class DeckController {
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = true
 
-        let host = NSHostingController(rootView: DeckView(store: store) { [weak self] agent in
-            self?.store.acknowledge(agent)
-            Focus.open(agent)
-        })
+        let host = NSHostingController(rootView: DeckView(
+            store: store,
+            onOpen: { [weak self] agent in
+                self?.store.acknowledge(agent)
+                Focus.open(agent)
+            },
+            onSettings: { [weak self] in self?.onSettings() },
+            onHide: { [weak self] in self?.hide() }))
         host.sizingOptions = [] // sized manually in fit()
         panel.contentViewController = host
         self.host = host
@@ -97,6 +103,8 @@ final class DeckController {
 struct DeckView: View {
     @ObservedObject var store: AgentStore
     var onOpen: (Agent) -> Void
+    var onSettings: () -> Void
+    var onHide: () -> Void
     @ObservedObject private var settings = Settings.shared
     @State private var hovering = false
 
@@ -121,15 +129,31 @@ struct DeckView: View {
                             DeckTile(agent: agent)
                                 .onTapGesture { onOpen(agent) }
                                 .help("\(agent.displayTitle)\n\(agent.cwd)\n\(statusLine(agent))")
+                                .contextMenu {
+                                    Button("jump to \(agent.displayTitle)") { onOpen(agent) }
+                                    Divider()
+                                    deckMenu
+                                }
                         }
                     }
                 }
             }
         }
+        .contextMenu { deckMenu }
         .padding(16) // room for the glass shadow
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.2), value: hovering)
         .fixedSize()
+    }
+}
+
+extension DeckView {
+    /// Right-click menu, so settings are reachable without the menu bar icon.
+    @ViewBuilder var deckMenu: some View {
+        Button("settings…", action: onSettings)
+        Button("hide deck", action: onHide)
+        Divider()
+        Button("quit barn") { NSApp.terminate(nil) }
     }
 }
 

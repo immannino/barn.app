@@ -29,6 +29,7 @@ final class LauncherModel: ObservableObject {
 @MainActor
 final class LauncherController: NSObject, NSWindowDelegate {
     private let store: AgentStore
+    private let onSettings: () -> Void
     private let model = LauncherModel()
     private let panel: KeyPanel
     private var keyMonitor: Any?
@@ -43,8 +44,9 @@ final class LauncherController: NSObject, NSWindowDelegate {
     static let margin: CGFloat = 20
     static let maxRows = 8
 
-    init(store: AgentStore) {
+    init(store: AgentStore, onSettings: @escaping () -> Void) {
         self.store = store
+        self.onSettings = onSettings
         panel = KeyPanel(contentRect: NSRect(x: 0, y: 0, width: Self.width, height: 300),
                          styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)
         super.init()
@@ -57,7 +59,9 @@ final class LauncherController: NSObject, NSWindowDelegate {
         panel.hidesOnDeactivate = false
         panel.delegate = self
 
-        let host = NSHostingView(rootView: LauncherView(store: store, model: model) { [weak self] in self?.open($0) })
+        let host = NSHostingView(rootView: LauncherView(store: store, model: model,
+                                                        onOpen: { [weak self] in self?.open($0) },
+                                                        onSettings: { [weak self] in self?.openSettings() }))
         host.wantsLayer = true
         host.layer?.backgroundColor = .clear
         panel.contentView = host
@@ -102,6 +106,11 @@ final class LauncherController: NSObject, NSWindowDelegate {
         Focus.open(agent)
     }
 
+    private func openSettings() {
+        hide()
+        onSettings()
+    }
+
     private func height() -> CGFloat {
         let rows = max(1, min(Self.maxRows, model.filter(store.agents).count))
         return Self.margin * 2 + Self.searchHeight + Self.gap + CGFloat(rows) * Self.rowHeight + Self.listPadding * 2
@@ -142,6 +151,9 @@ final class LauncherController: NSObject, NSWindowDelegate {
             case 36, 76: // return
                 if results.indices.contains(self.model.selection) { self.open(results[self.model.selection]) }
                 return nil
+            case 43 where event.modifierFlags.contains(.command): // ⌘,
+                self.openSettings()
+                return nil
             default:
                 if event.modifierFlags.contains(.command), let n = Int(event.charactersIgnoringModifiers ?? ""),
                    (1...9).contains(n), results.indices.contains(n - 1) {
@@ -163,6 +175,7 @@ struct LauncherView: View {
     @ObservedObject var store: AgentStore
     @ObservedObject var model: LauncherModel
     var onOpen: (Agent) -> Void
+    var onSettings: () -> Void
     @FocusState private var searchFocused: Bool
     @Namespace private var selectionNS
 
@@ -201,6 +214,15 @@ struct LauncherView: View {
                 .frame(height: 24)
                 .background(Capsule().fill(.primary.opacity(0.06)))
             }
+            Button(action: onSettings) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("settings (⌘,)")
         }
         .padding(.horizontal, 20)
         .frame(height: LauncherController.searchHeight)

@@ -119,6 +119,7 @@ private struct GeneralPane: View {
 
     var body: some View {
         Pane {
+            if settings.menuBarIconHidden { HiddenIconCard(settings: settings) }
             if !settings.welcomed { WelcomeCard(settings: settings, showAgents: showAgents) }
             SectionTitle(text: "startup")
             Toggle("open barn at login", isOn: Binding(get: { settings.launchAtLogin },
@@ -178,6 +179,28 @@ private struct WelcomeCard: View {
                 .background(Circle().fill(Color(nsColor: Brand.butter)))
             Text(text).font(.system(size: 12.5))
         }
+    }
+}
+
+/// Shown while macOS isn't drawing barn's menu bar icon, usually because the bar is full and
+/// the icon landed behind the notch.
+private struct HiddenIconCard: View {
+    @ObservedObject var settings: Settings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("your menu bar is full, so barn's icon is hidden", systemImage: "eye.slash")
+                .font(.system(size: 13.5, weight: .bold, design: .rounded))
+            Text("macOS hides menu bar icons that don't fit beside the notch. barn is still running. To make room, ⌘-drag icons you don't need off the menu bar, or turn some off in System Settings → Control Center. Then ⌘-drag barn to the right so it stays visible.")
+                .font(.system(size: 12))
+            Text("You can always get here without the icon: the gear in the switcher (\(settings.switcherHotKey?.display ?? "switcher shortcut")), right-clicking the floating deck, or opening barn again from Applications.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(nsColor: Brand.coral).opacity(0.14)))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color(nsColor: Brand.coral).opacity(0.4)))
     }
 }
 

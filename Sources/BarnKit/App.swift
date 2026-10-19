@@ -14,8 +14,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        launcher = LauncherController(store: store)
-        deck = DeckController(store: store)
+        let openSettings: () -> Void = { [weak self] in self?.settingsWindow.show() }
+        launcher = LauncherController(store: store, onSettings: openSettings)
+        deck = DeckController(store: store, onSettings: openSettings)
         notifier = Notifier(store: store)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,6 +27,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] in self?.renderStatusItem($0) }
             .store(in: &cancellables)
+
+        // Other menu bar apps coming and going (or a display change) can push the icon behind the notch.
+        let center = NotificationCenter.default
+        center.publisher(for: NSWindow.didMoveNotification, object: statusItem.button?.window)
+            .merge(with: center.publisher(for: NSApplication.didChangeScreenParametersNotification))
+            .debounce(for: .seconds(1), scheduler: RunLoop.main)
+            .sink { [weak self] _ in self?.checkStatusItemVisible() }
+            .store(in: &cancellables)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.checkStatusItemVisible() }
 
         // Re-register global shortcuts whenever they change; pause them while one is being recorded.
         let settings = Settings.shared
@@ -78,7 +88,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !paused, Settings.shared.hotKeyErrors != errors { Settings.shared.hotKeyErrors = errors }
     }
 
+    /// Opening barn.app while it's already running (Finder, Spotlight) opens settings, so it's
+    /// reachable even when the menu bar icon isn't.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        settingsWindow.show()
+        return false
+    }
+
     // MARK: Status item — one dot per agent, like a tiny deck in the menu bar.
+
+    /// macOS silently drops status items that don't fit; on notched displays they end up under the
+    /// notch. The first time that happens, open settings to explain it.
+    private func checkStatusItemVisible() {
+        guard let frame = statusItem.button?.window?.frame else { return }
+        let hidden = Self.isHidden(statusItem: frame, screens: NSScreen.screens.map { ($0.frame, $0.auxiliaryTopRightArea) })
+        let settings = Settings.shared
+        if settings.menuBarIconHidden != hidden { settings.menuBarIconHidden = hidden }
+        if hidden {
+            Log.write("menu bar icon is hidden (x=\(Int(frame.minX)))")
+            if !settings.hiddenIconExplained {
+                settings.hiddenIconExplained = true
+                settingsWindow.show()
+            }
+        }
+    }
+
+    /// `notchRight` is `NSScreen.auxiliaryTopRightArea`, in the screen's own coordinates (nil without a notch).
+    nonisolated static func isHidden(statusItem item: NSRect, screens: [(frame: NSRect, notchRight: NSRect?)]) -> Bool {
+        // Match on x only: with an auto-hiding menu bar the item can sit above the screen's top edge.
+        guard let screen = screens.first(where: { $0.frame.minX <= item.midX && item.midX < $0.frame.maxX })
+        else { return true }
+        guard let notchRight = screen.notchRight else { return false }
+        return item.minX < screen.frame.minX + notchRight.minX - 1
+    }
 
     private func renderStatusItem(_ agents: [Agent]) {
         guard let button = statusItem.button else { return }
