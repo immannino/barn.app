@@ -115,6 +115,7 @@ private struct SectionTitle: View {
 
 private struct GeneralPane: View {
     @ObservedObject var settings: Settings
+    @ObservedObject private var updater = Updater.shared
     var showAgents: () -> Void
 
     var body: some View {
@@ -129,6 +130,17 @@ private struct GeneralPane: View {
             Toggle("when an agent finishes a turn", isOn: $settings.notifyReady)
             Toggle("play a sound", isOn: $settings.notificationSound)
                 .disabled(!settings.notifyWaiting && !settings.notifyReady)
+            if updater.isAvailable {
+                SectionTitle(text: "updates")
+                HStack {
+                    Toggle("check for updates automatically", isOn: Binding(get: { updater.automaticallyChecks },
+                                                                           set: { updater.automaticallyChecks = $0 }))
+                    Spacer()
+                    Button("check now") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheck)
+                        .controlSize(.small)
+                }
+            }
             SectionTitle(text: "floating deck")
             Stepper("tiles per row: \(settings.deckColumns)", value: $settings.deckColumns, in: 1...8)
             SectionTitle(text: "exact status from any agent")
@@ -521,7 +533,7 @@ private struct AboutPane: View {
                         .font(.system(size: 13, design: .rounded))
                 }
             }
-            Text("barn watches the process table and each agent's own session files. Nothing is sent anywhere, and it doesn't need to start your agents.")
+            Text("barn watches the process table and each agent's own session files. Nothing is sent anywhere, and it doesn't need to start your agents. The only thing it fetches is the update feed from barn.ope.cool, which you can turn off under general.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             Button("open log") {

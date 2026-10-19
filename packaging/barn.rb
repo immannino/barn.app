@@ -10,6 +10,8 @@ cask "barn" do
   desc "Menu bar monitor and switcher for AI coding agents"
   homepage "https://github.com/immannino/barn.app"
 
+  # barn updates itself with Sparkle, so `brew upgrade` leaves it alone unless run with --greedy.
+  auto_updates true
   depends_on macos: ">= :sonoma"
 
   app "barn.app"

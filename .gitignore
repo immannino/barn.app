@@ -7,3 +7,5 @@ build/
 *.cer
 *.p12
 *.cert
+*.p8
+barn-sparkle-key.txt

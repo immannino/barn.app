@@ -23,7 +23,21 @@ git switch main && git pull
 make publish VERSION=0.2.0                              # or: TAP_DIR=../homebrew-tap make publish VERSION=0.2.0
 ```
 
-`publish.sh` refuses to run with uncommitted changes or a tag that already exists. It writes the files to `build/` before tagging, so a failed notarization never leaves a half-published release.
+`publish.sh` refuses to run off `main`, with uncommitted changes, or with a tag that already exists. It writes the files to `build/` before tagging, so a failed notarization never leaves a half-published release. After the GitHub Release it rewrites `site/appcast.xml` and pushes it, which redeploys the site.
+
+## Updates (Sparkle)
+
+barn updates itself with [Sparkle](https://sparkle-project.org). Each copy checks `https://barn.ope.cool/appcast.xml` once a day (users can turn that off in settings → general) and only installs an update signed with barn's EdDSA key. The public half is `SUPublicEDKey` in `Resources/Info.plist`. The private half is in the login keychain of the release Mac, under the account `barn`. `publish.sh` checks that the two match before building.
+
+> ⚠️ **Back up the private key.** If it's lost, existing copies of barn will refuse every future update, and their users have to download a new version by hand. Export it once and keep the file in your password manager:
+>
+> ```sh
+> swift package resolve
+> .build/artifacts/sparkle/Sparkle/bin/generate_keys --account barn -x barn-sparkle-key.txt   # export
+> .build/artifacts/sparkle/Sparkle/bin/generate_keys --account barn -f barn-sparkle-key.txt   # import on another Mac
+> ```
+
+The Homebrew cask says `auto_updates true`, so `brew upgrade` leaves barn to Sparkle (unless run with `--greedy`). Sparkle's `bin/` tools come with the Swift package, pinned in `Package.swift`.
 
 > ⚠️ Your Developer ID certificate **expires 2027-02-01**. Releases notarized before then keep opening for users. To keep shipping after that date, create a new certificate in Xcode → Settings → Accounts → Manage Certificates → **+** → Developer ID Application. Same team, so users keep their Automation permission.
 
@@ -84,6 +98,8 @@ Then delete the `.p12` and `.p8` from disk, or keep them in a password manager. 
 | `NOTARY_KEY_ID` | API key ID |
 | `NOTARY_ISSUER_ID` | API issuer ID |
 | `HOMEBREW_TAP_TOKEN` | *(optional)* see step 4 |
+
+CI releases don't update the Sparkle appcast, because that needs the update signing key. After a CI release, run `sign_update` on the zip and update `site/appcast.xml` from your Mac, or keep releasing locally.
 
 You don't need an identity-name secret: `release.sh` finds the Developer ID identity in the keychain on its own.
 

@@ -14,23 +14,28 @@ IDENTITY="${BARN_SIGN_IDENTITY:--}"
 
 if [ "${UNIVERSAL:-0}" = 1 ]; then
   swift build -c release --arch arm64 --arch x86_64
-  BIN=.build/apple/Products/Release/barn
+  PRODUCTS=.build/apple/Products/Release
 else
   swift build -c release
-  BIN=.build/release/barn
+  PRODUCTS=.build/release
 fi
 
 APP=build/barn.app
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/barn"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
+cp "$PRODUCTS/barn" "$APP/Contents/MacOS/barn"
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/barn"
+# Sparkle (updates). Its XPC services are only for sandboxed apps, which barn isn't.
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$PRODUCTS/Sparkle.framework" "$SPARKLE"
+rm -rf "$SPARKLE/Versions/B/XPCServices" "$SPARKLE/XPCServices"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
 
-if [ "$IDENTITY" = "-" ]; then
-  codesign --force --sign - --entitlements Resources/barn.entitlements "$APP" >/dev/null
-else
-  codesign --force --sign "$IDENTITY" --options runtime --timestamp \
-    --entitlements Resources/barn.entitlements "$APP"
-fi
+# Inside out: Sparkle's helpers, the framework, then the app.
+if [ "$IDENTITY" = "-" ]; then set -- --sign -; else set -- --sign "$IDENTITY" --options runtime --timestamp; fi
+for code in "$SPARKLE/Versions/B/Autoupdate" "$SPARKLE/Versions/B/Updater.app" "$SPARKLE"; do
+  codesign --force "$@" "$code" 2>&1 | grep -v 'replacing existing signature' || true
+done
+codesign --force "$@" --entitlements Resources/barn.entitlements "$APP" 2>&1 | grep -v 'replacing existing signature' || true
 echo "built $APP ($VERSION, $IDENTITY)"

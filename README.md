@@ -58,7 +58,7 @@ The first time you jump to a terminal, macOS asks whether barn may control it. S
 
 ## Privacy
 
-barn makes no network connections at all: no account, no telemetry, no analytics. It reads the process table and your agents' local session files, and writes only to `~/.barn`, its log (`~/Library/Logs/barn.log`) and its preferences. Hook setup edits a config only when you click it, and backs the file up first.
+barn has no account, no telemetry and no analytics. Its only network request is the update check, which fetches `barn.ope.cool/appcast.xml` once a day; turn it off in settings → general. It reads the process table and your agents' local session files, and writes only to `~/.barn`, its log (`~/Library/Logs/barn.log`) and its preferences. Hook setup edits a config only when you click it, and backs the file up first.
 
 ## FAQ
 

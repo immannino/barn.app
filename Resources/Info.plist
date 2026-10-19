@@ -14,6 +14,10 @@
     <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
+    <!-- Sparkle self-updates. The private half of the key is in the release Mac's keychain (account "barn"). -->
+    <key>SUFeedURL</key><string>https://barn.ope.cool/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>NS7OW28DqxuHl9LaxRnZ0YZuoyKVEACyI8uXX5P28fE=</string>
+    <key>SUEnableAutomaticChecks</key><true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>barn uses Apple Events to bring the terminal tab running an agent to the front.</string>
 </dict>

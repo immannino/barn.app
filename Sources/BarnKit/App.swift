@@ -47,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .store(in: &cancellables)
 
         store.start()
+        Updater.shared.start()
         DispatchQueue.global(qos: .utility).async { Integration.all.forEach { $0.repairIfMoved() } }
 
         // Dev conveniences: `open barn.app --args --switcher --deck --settings`.
@@ -167,7 +168,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ]
         items[1].state = deck.isVisible ? .on : .off
         let prefs = NSMenuItem(title: "settings…", action: #selector(openSettings), keyEquivalent: ",")
-        for item in items + [prefs] {
+        var extras = [prefs]
+        if Updater.shared.isAvailable {
+            let update = NSMenuItem(title: "check for updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+            update.isEnabled = Updater.shared.canCheck
+            extras.append(update)
+        }
+        for item in items + extras {
             item.target = self
             menu.addItem(item)
         }
@@ -200,6 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openSwitcher() { launcher.show() }
     @objc private func toggleDeck() { deck.toggle() }
     @objc private func openSettings() { settingsWindow.show() }
+    @objc private func checkForUpdates() { Updater.shared.checkForUpdates() }
 
     private static func dotImage(_ color: NSColor) -> NSImage {
         NSImage(size: NSSize(width: 10, height: 10), flipped: false) { rect in
