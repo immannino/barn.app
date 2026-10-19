@@ -36,9 +36,9 @@ Everything below is only needed if you want GitHub Actions to sign and notarize 
 ## 0. Create the repo
 
 ```sh
-./scripts/set-owner.sh <your-github-name>    # puts your GitHub name into the README, site and cask
+./scripts/set-owner.sh immannino    # puts your GitHub name into the README, site and cask
 git add -A && git commit -m "barn 0.1.0"
-gh repo create <your-github-name>/barn --public --source . --push
+gh repo create immannino/barn.app --public --source . --push
 ```
 
 ## 1. Developer ID certificate (`.p12`)
@@ -93,12 +93,12 @@ You don't need an identity-name secret: `release.sh` finds the Developer ID iden
 2. Create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) with access to *only* `homebrew-tap` and permission **Contents: read and write**.
 3. `gh secret set HOMEBREW_TAP_TOKEN` and paste the token.
 
-Each release then commits `Casks/barn.rb` with the new version and sha256, so `brew install --cask <you>/tap/barn` and `brew upgrade` just work. Without the token, the release still publishes; the tap step is skipped.
+Each release then commits `Casks/barn.rb` with the new version and sha256, so `brew install --cask immannino/tap/barn` and `brew upgrade` just work. Without the token, the release still publishes; the tap step is skipped.
 
 ## 5. Website on barn.ope.cool
 
 1. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. At your DNS provider for `ope.cool`, add **CNAME** `barn` → `<your-github-name>.github.io`.
+2. At your DNS provider for `ope.cool`, add **CNAME** `barn` → `immannino.github.io`.
 3. Settings → Pages → Custom domain: `barn.ope.cool` (`site/CNAME` already says so). Once the certificate is issued, turn on **Enforce HTTPS**.
 4. Recommended: verify `ope.cool` under your **account** Settings → Pages → *Verified domains*, so no other repo can claim the subdomain.
 

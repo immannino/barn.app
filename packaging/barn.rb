@@ -1,14 +1,14 @@
-# Homebrew cask template. The release workflow fills in version/sha256/OWNER and pushes it to
-# github.com/OWNER/homebrew-tap as Casks/barn.rb. Users then run:
-#   brew install --cask OWNER/tap/barn
+# Homebrew cask template. The release workflow fills in version and sha256 and pushes it to
+# github.com/immannino/homebrew-tap as Casks/barn.rb. Users then run:
+#   brew install --cask immannino/tap/barn
 cask "barn" do
   version "0.1.0"
   sha256 "REPLACE_WITH_SHA256"
 
-  url "https://github.com/OWNER/barn/releases/download/v#{version}/barn-#{version}.zip"
+  url "https://github.com/immannino/barn.app/releases/download/v#{version}/barn-#{version}.zip"
   name "barn"
   desc "Menu bar monitor and switcher for AI coding agents"
-  homepage "https://github.com/OWNER/barn"
+  homepage "https://github.com/immannino/barn.app"
 
   depends_on macos: ">= :sonoma"
 

@@ -8,9 +8,9 @@
 A tiny macOS menu-bar app that watches every AI coding agent on your Mac and gets you to the one that needs you, in one keystroke.</p>
 
 <p align="center">
-  <a href="https://github.com/OWNER/barn/releases/latest/download/barn.dmg"><b>download for mac</b></a> ·
+  <a href="https://github.com/immannino/barn.app/releases/latest/download/barn.dmg"><b>download for mac</b></a> ·
   <a href="https://barn.ope.cool">barn.ope.cool</a> ·
-  <code>brew install --cask OWNER/tap/barn</code>
+  <code>brew install --cask immannino/tap/barn</code>
 </p>
 
 <p align="center"><img src="docs/images/hero.png" alt="The barn switcher listing agents with live status, next to the floating deck"></p>
@@ -46,15 +46,15 @@ echo '{"state":"waiting","detail":"approve deploy"}' > ~/.barn/status/$PPID.json
 
 ## Install
 
-**Download** [barn.dmg](https://github.com/OWNER/barn/releases/latest/download/barn.dmg), open it, and drag barn to Applications. Or use Homebrew:
+**Download** [barn.dmg](https://github.com/immannino/barn.app/releases/latest/download/barn.dmg), open it, and drag barn to Applications. Or use Homebrew:
 
 ```sh
-brew install --cask OWNER/tap/barn
+brew install --cask immannino/tap/barn
 ```
 
 The first time you jump to a terminal, macOS asks whether barn may control it. Say OK; that's how barn picks the exact tab. barn needs macOS 14 or later and looks best on macOS 26.
 
-**From source:** `git clone https://github.com/OWNER/barn && cd barn && make install` (needs Xcode 26).
+**From source:** `git clone https://github.com/immannino/barn.app && cd barn.app && make install` (needs Xcode 26).
 
 ## Privacy
 
