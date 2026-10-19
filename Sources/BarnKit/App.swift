@@ -47,7 +47,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .store(in: &cancellables)
 
         store.start()
-        Updater.shared.start()
+        // No update prompts or settings windows popping up mid-recording.
+        if !CommandLine.arguments.contains("--demo") { Updater.shared.start() }
+        if DemoScript.isOn { DemoScript.run(store: store, launcher: launcher, deck: deck) }
         DispatchQueue.global(qos: .utility).async { Integration.all.forEach { $0.repairIfMoved() } }
 
         // Dev conveniences: `open barn.app --args --switcher --deck --settings`.
@@ -101,7 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// macOS silently drops status items that don't fit; on notched displays they end up under the
     /// notch. The first time that happens, open settings to explain it.
     private func checkStatusItemVisible() {
-        guard let frame = statusItem.button?.window?.frame else { return }
+        guard !CommandLine.arguments.contains("--demo"), let frame = statusItem.button?.window?.frame else { return }
         let hidden = Self.isHidden(statusItem: frame, screens: NSScreen.screens.map { ($0.frame, $0.auxiliaryTopRightArea) })
         let settings = Settings.shared
         if settings.menuBarIconHidden != hidden { settings.menuBarIconHidden = hidden }

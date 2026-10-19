@@ -74,6 +74,14 @@ final class LauncherController: NSObject, NSWindowDelegate {
     }
 
     var isVisible: Bool { panel.isVisible }
+    var frame: NSRect { panel.frame }
+
+    /// Scripted demo: type into the search field, then "press ↵".
+    func demoType(_ query: String) { model.query = query }
+    func demoOpenSelected() {
+        let results = model.filter(store.agents)
+        if results.indices.contains(model.selection) { open(results[model.selection]) }
+    }
 
     func toggle() { panel.isVisible ? hide() : show() }
 

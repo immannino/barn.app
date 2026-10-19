@@ -20,6 +20,7 @@ Launch flags, for development and screenshots (`open build/barn.app --args …`)
 | `--settings <tab>` | open settings on `general`, `shortcuts`, `agents` or `about` |
 | `--focus <pid>` | run the jump-to-terminal path for one agent |
 | `--demo` | made-up agents, no scanning (marketing screenshots). Jumps do nothing. |
+| `--demo --demo-script` | a ~17 s scripted story over a brand backdrop, then quits. `./scripts/record-demo.sh` records it to `build/demo/` (MP4, GIF, poster); run that on macOS 26 for Liquid Glass. |
 
 CLI modes of the same binary: `barn --dump` prints what detection sees, and `barn hook <harness>` is the hook handler. The log is at `~/Library/Logs/barn.log`.
 

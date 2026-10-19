@@ -166,13 +166,25 @@ final class AgentStore: ObservableObject {
             Agent(pid: pid, kind: kind(k), cwd: "/Users/you/code/" + cwd, tty: nil, host: ghostty, state: state,
                   stateSince: now.addingTimeInterval(-ago), title: title, detail: detail, precise: true)
         }
+        // The scripted demo (Demo.swift) starts with pancake-api still working, so it can ask for you on camera.
+        let pancake: AgentState = DemoScript.isOn ? .working : .waiting
         agents = [
-            agent(101, "claude", "pancake-api", "Add rate limiting to checkout", .waiting, "permission · Bash: npm run migrate", 42),
+            agent(101, "claude", "pancake-api", "Add rate limiting to checkout", pancake,
+                  DemoScript.isOn ? "Bash: npm test" : "permission · Bash: npm run migrate", 42),
             agent(102, "codex", "garden", "Fix flaky watering scheduler test", .ready, nil, 180),
             agent(103, "claude", "web", "Redesign onboarding flow", .working, "Edit: Onboarding.tsx", 95),
             agent(104, "vibe", "ledger", "Daily audit query", .working, "thinking", 20),
             agent(105, "gemini", "docs", nil, .idle, nil, 3600 * 2),
             agent(106, "claude", "infra", "Terraform plan for staging", .idle, nil, 60 * 25),
         ]
+        demoAgents { _ in }
+    }
+
+    /// Demo only: change the made-up agents, then sort the way `merge` does.
+    func demoAgents(_ change: (inout [Agent]) -> Void) {
+        var next = agents
+        change(&next)
+        next.sort { ($0.state, $0.project.lowercased(), $0.pid) < ($1.state, $1.project.lowercased(), $1.pid) }
+        agents = next
     }
 }

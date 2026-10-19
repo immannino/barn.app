@@ -19,6 +19,7 @@ final class DeckController {
     }
 
     var isVisible: Bool { panel?.isVisible ?? false }
+    var frame: NSRect? { panel?.frame }
 
     func toggle() { isVisible ? hide() : show() }
 
