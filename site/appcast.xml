@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>barn</title>
+    <link>https://barn.ope.cool/appcast.xml</link>
+    <item>
+      <title>barn 0.1.2</title>
+      <pubDate>Mon, 19 Oct 2026 22:08:28 +0000</pubDate>
+      <sparkle:version>7</sparkle:version>
+      <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:fullReleaseNotesLink>https://github.com/immannino/barn.app/releases/tag/v0.1.2</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/immannino/barn.app/releases/download/v0.1.2/barn-0.1.2.zip"
+                 type="application/octet-stream" sparkle:edSignature="4x7ey8xH2nxswFbSS5ukBnNPBzIBKRAMi/Nd9AqKEf/WvsLUpb+1c0sqGRIYtFVYocnNZ2nzADXpPA+VDp6jBQ==" length="4257906" />
+    </item>
+  </channel>
+</rss>
