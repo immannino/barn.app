@@ -1,7 +1,7 @@
 PREFIX ?= /Applications
 APP = build/barn.app
 
-.PHONY: build app run install uninstall cli icon release site test clean
+.PHONY: build app run install uninstall cli icon release publish site test clean
 
 build:
 	swift build
@@ -32,6 +32,10 @@ icon:
 
 release:
 	./scripts/release.sh $(VERSION)
+
+# make publish VERSION=0.2.0 [TAP_DIR=../homebrew-tap]
+publish:
+	TAP_DIR=$(TAP_DIR) ./scripts/publish.sh $(VERSION)
 
 clean:
 	rm -rf .build build

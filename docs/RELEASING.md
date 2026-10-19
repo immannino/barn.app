@@ -1,15 +1,37 @@
 # Releasing barn
 
-Push a `v*` tag and GitHub Actions does the rest:
+barn is released **from your Mac**: `make publish VERSION=0.2.0` signs, notarizes, tags, creates the GitHub Release (with `barn.dmg`, `barn-<version>.zip` and `checksums.txt`), and optionally updates the Homebrew cask. GitHub Actions only runs CI and deploys the website. A CI release workflow exists but is manual-only. To have CI do releases instead, see [Releasing from CI](#releasing-from-ci-optional).
 
-1. Builds a universal app and runs the tests.
-2. Signs with your Developer ID and notarizes it with Apple.
-3. Publishes a GitHub Release with `barn.dmg` (for people), `barn-<version>.zip` (for Homebrew) and `checksums.txt`.
-4. Optionally, updates the Homebrew cask in your tap.
+## Releasing from your Mac
 
-The website deploys separately whenever `site/` changes on `main`.
+First, create the repo ([step 0](#0-create-the-repo)) and set up the website ([step 5](#5-website-on-barnopecool)). Both apply no matter how you release. Optionally create a [Homebrew tap](#4-homebrew-tap-optional-recommended) repo; you can skip its token when publishing locally.
 
-This is the one-time setup.
+One-time setup, on the Mac with the Developer ID private key:
+
+```sh
+security find-identity -v -p codesigning     # should list "Developer ID Application: …"
+xcrun notarytool store-credentials barn-notary \
+  --apple-id you@example.com --team-id 4PVT5ZU6L6 --password <app-specific-password>
+#   (app-specific password: account.apple.com → Sign-In and Security → App-Specific Passwords)
+brew install gh && gh auth login
+```
+
+Each release:
+
+```sh
+git switch main && git pull
+make publish VERSION=0.2.0                              # or: TAP_DIR=../homebrew-tap make publish VERSION=0.2.0
+```
+
+`publish.sh` refuses to run with uncommitted changes or a tag that already exists. It writes the files to `build/` before tagging, so a failed notarization never leaves a half-published release.
+
+> ⚠️ Your Developer ID certificate **expires 2027-02-01**. Releases notarized before then keep opening for users. To keep shipping after that date, create a new certificate in Xcode → Settings → Accounts → Manage Certificates → **+** → Developer ID Application. Same team, so users keep their Automation permission.
+
+---
+
+# Releasing from CI (optional)
+
+Everything below is only needed if you want GitHub Actions to sign and notarize instead of your Mac.
 
 ## 0. Create the repo
 
@@ -82,9 +104,9 @@ Each release then commits `Casks/barn.rb` with the new version and sha256, so `b
 
 The `pages` workflow publishes `site/` on every push to `main` that touches it.
 
-## 6. First release
+## 6. Turn on tag releases
 
-Do a dry run first. **Actions → release → Run workflow** with version `0.1.0` builds, signs and notarizes without publishing, and uploads the files as a workflow artifact. Download `barn.dmg` and open it on a Mac. It should open with no Gatekeeper warning, and
+In `.github/workflows/release.yml`, uncomment the `push: tags` trigger. Do a dry run first: **Actions → release → Run workflow** with version `0.1.0` builds, signs and notarizes without publishing, and uploads the files as a workflow artifact. Download `barn.dmg` and open it on a Mac. It should open with no Gatekeeper warning, and
 
 ```sh
 spctl --assess --type execute --verbose /Applications/barn.app   # → accepted, source=Notarized Developer ID
@@ -94,17 +116,6 @@ Then ship:
 
 ```sh
 git tag v0.1.0 && git push origin v0.1.0
-```
-
-## Releasing from your own Mac
-
-Once the Developer ID identity is in your keychain:
-
-```sh
-# one time: store notary credentials (API key, or Apple ID + app-specific password)
-xcrun notarytool store-credentials barn-notary --key AuthKey_XXXX.p8 --key-id XXXX --issuer <issuer-uuid>
-
-./scripts/release.sh 0.1.0      # → build/barn.dmg, build/barn-0.1.0.zip, build/checksums.txt
 ```
 
 ## Troubleshooting

@@ -1,11 +1,10 @@
-# Push a tag to ship:  git tag v0.2.0 && git push origin v0.2.0
-#
-# Signs with your Developer ID, notarizes, publishes a GitHub Release with barn.dmg + a zip,
-# and (optionally) bumps the Homebrew cask. Secrets are listed in docs/RELEASING.md.
+# CI release (optional). barn is normally released from a Mac with ./scripts/publish.sh, so this
+# only runs when started by hand from the Actions tab. Re-enable the tag trigger below after adding
+# the secrets in docs/RELEASING.md if you'd rather have CI do it.
 name: release
 on:
-  push:
-    tags: ["v*"]
+  # push:
+  #   tags: ["v*"]
   workflow_dispatch:
     inputs:
       version:
