@@ -190,12 +190,13 @@ public enum BarnApp {
         let sessions = ClaudeSessions().read()
         for f in found.sorted(by: { $0.pid < $1.pid }) {
             let s = sessions[f.pid]
-            print([
+            let status: String = s.map { "status=\($0.status)" } ?? "status=(inferred)"
+            let fields: [String] = [
                 "\(f.pid)", f.kind.id, f.tty ?? "-", f.host?.name ?? "?",
                 String(format: "cpu=%.0f%%", f.cpu * 100),
-                s.map { "status=\($0.status)" } ?? "status=(inferred)",
-                s?.title ?? "-", s?.activity ?? "-", f.cwd,
-            ].joined(separator: "  "))
+                status, s?.title ?? "-", s?.activity ?? "-", f.cwd,
+            ]
+            print(fields.joined(separator: "  "))
         }
     }
 }
