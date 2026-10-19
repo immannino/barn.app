@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>barn</string>
+    <key>CFBundleDisplayName</key><string>barn</string>
+    <key>CFBundleIdentifier</key><string>dev.tony.barn</string>
+    <key>CFBundleExecutable</key><string>barn</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>__VERSION__</string>
+    <key>CFBundleVersion</key><string>__BUILD__</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
+    <key>LSApplicationCategoryType</key><string>public.app-category.developer-tools</string>
+    <key>LSUIElement</key><true/>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>barn uses Apple Events to bring the terminal tab running an agent to the front.</string>
+</dict>
+</plist>

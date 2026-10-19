@@ -1,0 +1,102 @@
+# Push a tag to ship:  git tag v0.2.0 && git push origin v0.2.0
+#
+# Signs with your Developer ID, notarizes, publishes a GitHub Release with barn.dmg + a zip,
+# and (optionally) bumps the Homebrew cask. Secrets are listed in docs/RELEASING.md.
+name: release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (no v), e.g. 0.2.0 — builds and notarizes, doesn't publish"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26 # Liquid Glass needs the macOS 26 SDK (Xcode 26)
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+      HAS_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Select Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && swift --version
+
+      - name: Test
+        run: swift test
+
+      - name: Import Developer ID certificate
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Write notary API key
+        env:
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+        run: |
+          echo "$NOTARY_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+
+      - name: Build, sign, notarize
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: ./scripts/release.sh "${VERSION#v}"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: barn-${{ env.VERSION }}
+          path: |
+            build/barn.dmg
+            build/barn-*.zip
+            build/checksums.txt
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/barn.dmg build/barn-*.zip build/checksums.txt \
+            --title "barn ${GITHUB_REF_NAME#v}" --generate-notes
+
+      - name: Bump Homebrew cask
+        if: startsWith(github.ref, 'refs/tags/v') && env.HAS_TAP_TOKEN == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          SHA=$(shasum -a 256 "build/barn-$V.zip" | cut -d' ' -f1)
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/$OWNER/homebrew-tap.git" tap
+          mkdir -p tap/Casks
+          sed -e "s/^  version \".*\"/  version \"$V\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" \
+              -e "s/OWNER/$OWNER/g" packaging/barn.rb > tap/Casks/barn.rb
+          cd tap
+          git config user.name "barn release bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Casks/barn.rb
+          git commit -m "barn $V"
+          git push
+
+      - name: Clean up keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true

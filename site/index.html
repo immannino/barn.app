@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>barn — a little barn for all your agents</title>
+  <meta name="description" content="barn is a tiny macOS menu-bar app that watches every AI coding agent on your Mac — Claude Code, Codex, Gemini, Mistral Vibe and more — and jumps you to the exact terminal tab when one needs you.">
+  <meta name="theme-color" content="#334DFF">
+  <meta property="og:title" content="barn — a little barn for all your agents">
+  <meta property="og:description" content="See every AI coding agent at a glance. ⌃⌥Space to jump to the one that needs you.">
+  <meta property="og:image" content="https://barn.ope.cool/assets/hero.png">
+  <meta property="og:url" content="https://barn.ope.cool">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <nav class="nav">
+      <a class="wordmark" href="#">barn<span class="dot"></span></a>
+      <div class="nav-links">
+        <a href="#how">how it works</a>
+        <a href="#agents">agents</a>
+        <a href="https://github.com/OWNER/barn">github</a>
+        <a class="pill" href="https://github.com/OWNER/barn/releases/latest/download/barn.dmg">download</a>
+      </div>
+    </nav>
+
+    <div class="hero-copy">
+      <p class="eyebrow">for people running too many agents at once</p>
+      <h1>a little barn for <em>all</em> your agents.</h1>
+      <p class="lede">barn lives in your menu bar and watches every AI coding agent on your Mac. When one needs you, <span class="kbd-inline">⌃⌥Space</span> takes you to its exact terminal tab.</p>
+      <div class="cta">
+        <a class="button" href="https://github.com/OWNER/barn/releases/latest/download/barn.dmg">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.8 0-1.9-.9-3.2-.8-1.6 0-3.1 1-4 2.4-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.1-1.2 2.9-2.4.9-1.4 1.3-2.7 1.3-2.8 0 0-2.4-.9-2.4-3.9zM14 5.4c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1.1.1 2.1-.6 2.8-1.4z"/></svg>
+          download for mac
+        </a>
+        <button class="brew" type="button" data-copy="brew install --cask OWNER/tap/barn" aria-label="copy brew install command">
+          <code>brew install --cask OWNER/tap/barn</code>
+          <span class="copy-hint">copy</span>
+        </button>
+      </div>
+      <p class="fine">free &amp; open source · macOS 14+ · prettiest on macOS 26 · nothing leaves your Mac</p>
+    </div>
+
+    <figure class="hero-shot">
+      <img src="assets/hero.png" width="1040" height="470" alt="The barn switcher listing six agents with live status, beside the floating deck of glass tiles">
+    </figure>
+  </header>
+
+  <main>
+    <section class="menubar-demo" aria-label="barn in the menu bar">
+      <div class="menubar">
+        <span class="apple"></span>
+        <span class="menubar-spacer"></span>
+        <span class="barn-dots" id="dots" aria-hidden="true"></span>
+        <span class="clock" id="clock">Mon 9:41</span>
+      </div>
+      <p class="caption">one dot per agent, right in your menu bar. <span class="c-coral">coral</span> means it needs you.</p>
+    </section>
+
+    <section id="how" class="features">
+      <h2>it just <em>knows</em>.</h2>
+      <div class="cards">
+        <article class="card">
+          <div class="card-art art-eyes" aria-hidden="true"><span></span><span></span></div>
+          <h3>zero setup</h3>
+          <p>Start agents however you like. barn finds them in the process table and reads their own session files, so it always knows which are working, waiting or done.</p>
+        </article>
+        <article class="card">
+          <div class="card-art art-tabs" aria-hidden="true"><span></span><span class="on"></span><span></span></div>
+          <h3>the exact tab</h3>
+          <p>Not just the app. barn picks the right Ghostty split, iTerm or Terminal tab, VS Code window, or tmux pane, then brings it to the front.</p>
+        </article>
+        <article class="card">
+          <div class="card-art art-tap" aria-hidden="true"><span></span></div>
+          <h3>taps you on the shoulder</h3>
+          <p>When an agent hits a permission prompt or asks a question, you get a notification. Click it and you're there. No more agents waiting on you without you knowing.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="keys">
+      <div class="keycaps" aria-label="Control Option Space">
+        <kbd>⌃</kbd><kbd>⌥</kbd><kbd class="space">space</kbd>
+      </div>
+      <div>
+        <h2>from <em>anywhere</em>.</h2>
+        <p>A Spotlight-style switcher for your agents. Type to filter, press ↵, and you're in the right tab. The most urgent agents sort to the top, and ⌘1–9 jumps straight to one. Every shortcut can be changed in settings.</p>
+      </div>
+    </section>
+
+    <section class="deck-section">
+      <div>
+        <h2>a stream deck that <em>comes with you</em>.</h2>
+        <p>Turn on the floating deck (⌃⌥D) for a strip of glass tiles that stays on top. It's a glanceable status board on every desktop.</p>
+        <ul class="legend">
+          <li><span class="swatch coral pulse"></span>needs you</li>
+          <li><span class="swatch mint"></span>ready (you haven't looked yet)</li>
+          <li><span class="swatch electric"></span>working</li>
+          <li><span class="swatch idle"></span>idle</li>
+        </ul>
+      </div>
+      <div class="mini-deck" aria-hidden="true">
+        <div class="tile t-coral"><b>CC</b><strong>api</strong><small>permission</small></div>
+        <div class="tile t-mint"><b>CX</b><strong>garden</strong><small>ready</small></div>
+        <div class="tile t-blue"><b>MV</b><strong>ledger</strong><small>thinking</small></div>
+        <div class="tile"><b>GM</b><strong>docs</strong><small>idle</small></div>
+      </div>
+    </section>
+
+    <section id="agents" class="agents">
+      <h2>brings the whole <em>herd</em>.</h2>
+      <p class="sub">Detected automatically. <span class="tag exact">exact</span> agents report their own state. <span class="tag hook">hook</span> agents become exact with one click in settings. Everything else is tracked by activity, and you can add your own.</p>
+      <ul class="badges">
+        <li><b>CC</b>Claude Code<span class="tag exact">exact</span></li>
+        <li><b>MV</b>Mistral Vibe<span class="tag exact">exact</span></li>
+        <li><b>CX</b>Codex<span class="tag hook">hook</span></li>
+        <li><b>GM</b>Gemini CLI<span class="tag hook">hook</span></li>
+        <li><b>GH</b>Copilot CLI<span class="tag hook">hook</span></li>
+        <li><b>FD</b>Factory Droid<span class="tag hook">hook</span></li>
+        <li><b>QW</b>Qwen Code<span class="tag hook">hook</span></li>
+        <li><b>AU</b>Auggie<span class="tag hook">hook</span></li>
+        <li><b>KI</b>Kiro<span class="tag hook">hook</span></li>
+        <li><b>CL</b>Cline<span class="tag hook">hook</span></li>
+        <li><b>OC</b>opencode</li>
+        <li><b>AM</b>Amp</li>
+        <li><b>CU</b>Cursor Agent</li>
+        <li><b>AD</b>Aider</li>
+        <li><b>GO</b>Goose</li>
+        <li><b>CR</b>Crush</li>
+        <li><b>KM</b>Kimi</li>
+        <li><b>PI</b>Pi</li>
+        <li><b>KL</b>Kilo</li>
+        <li><b>AG</b>Antigravity</li>
+        <li class="yours"><b>+</b>yours</li>
+      </ul>
+    </section>
+
+    <section class="hooks">
+      <div>
+        <h2>speaks <em>everyone's</em> language.</h2>
+        <p>Anything can tell barn what it's doing. Point a hook at <code>barn hook</code>, or write one small JSON file from any script.</p>
+      </div>
+      <pre class="code"><code><span class="c"># any agent's hook config</span>
+barn hook codex
+
+<span class="c"># …or from any script</span>
+echo '{"state":"waiting","detail":"approve deploy"}' \
+  &gt; ~/.barn/status/$PPID.json</code></pre>
+    </section>
+
+    <section class="privacy">
+      <div class="lock" aria-hidden="true"></div>
+      <div>
+        <h2>stays on your mac. <em>always</em>.</h2>
+        <p>No account, no telemetry, no network calls. barn reads the process table and your agents' local files, and that's all. The source is open, so you can check.</p>
+      </div>
+    </section>
+
+    <section class="faq">
+      <h2>questions, <em>answered</em>.</h2>
+      <details>
+        <summary>Do I have to start my agents through barn?</summary>
+        <p>No. Run them however you already do, in any terminal or editor. barn notices them on its own, usually within a second.</p>
+      </details>
+      <details>
+        <summary>Why does it ask to control my terminal?</summary>
+        <p>To bring the right tab to the front, barn uses Apple Events, the same way Raycast or Alfred do. macOS asks once per terminal app. barn only uses that permission to focus windows and tabs.</p>
+      </details>
+      <details>
+        <summary>Which terminals does it know?</summary>
+        <p>Ghostty, iTerm2 and Terminal.app all get exact tab or split focus, and tmux gets exact pane focus. VS Code, Cursor, Windsurf and Zed get the right window. Anything else gets activated.</p>
+      </details>
+      <details>
+        <summary>My agent isn't listed.</summary>
+        <p>Add it in settings → agents → your own, with its process name. If it has hooks, point them at <code>barn hook &lt;name&gt;</code> for exact state.</p>
+      </details>
+      <details>
+        <summary>How much does it cost?</summary>
+        <p>Nothing. barn is free and open source. It uses about as much CPU as a clock widget.</p>
+      </details>
+    </section>
+
+    <section class="final">
+      <img src="assets/icon.png" width="128" height="128" alt="">
+      <h2>bring them <em>home</em>.</h2>
+      <div class="cta center">
+        <a class="button" href="https://github.com/OWNER/barn/releases/latest/download/barn.dmg">download for mac</a>
+        <button class="brew" type="button" data-copy="brew install --cask OWNER/tap/barn" aria-label="copy brew install command">
+          <code>brew install --cask OWNER/tap/barn</code>
+          <span class="copy-hint">copy</span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span class="wordmark small">barn<span class="dot"></span></span>
+    <span>made in a little barn by <a href="https://github.com/OWNER">tony</a></span>
+    <a href="https://github.com/OWNER/barn">source</a>
+  </footer>
+
+  <script>
+    // Copy-to-clipboard on the brew pills.
+    document.querySelectorAll('[data-copy]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        var hint = el.querySelector('.copy-hint');
+        try {
+          navigator.clipboard.writeText(el.dataset.copy).then(function () {
+            hint.textContent = 'copied!';
+            setTimeout(function () { hint.textContent = 'copy'; }, 1600);
+          });
+        } catch (e) { /* clipboard unavailable: the text is still selectable */ }
+      });
+    });
+
+    // A tiny live menu bar: dots wander between states like real agents do.
+    var states = ['coral', 'mint', 'electric', 'electric', 'idle', 'idle'];
+    var dots = document.getElementById('dots');
+    states.forEach(function (s) { var d = document.createElement('i'); d.className = s; dots.appendChild(d); });
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduce) {
+      setInterval(function () {
+        var all = dots.querySelectorAll('i');
+        var i = Math.floor(Math.random() * all.length);
+        var next = ['coral', 'mint', 'electric', 'idle'][Math.floor(Math.random() * 4)];
+        all[i].className = next;
+      }, 1400);
+    }
+    var clock = document.getElementById('clock');
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function tick() {
+      var d = new Date();
+      clock.textContent = days[d.getDay()] + ' ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    tick(); setInterval(tick, 30000);
+  </script>
+</body>
+</html>

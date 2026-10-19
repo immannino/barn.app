@@ -1,0 +1,53 @@
+import AppKit
+import SwiftUI
+
+/// Colored status dot; pulses while the agent needs you.
+struct StateDot: View {
+    var state: AgentState
+    var size: CGFloat = 10
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(Color(nsColor: state.color).gradient)
+            .frame(width: size, height: size)
+            .shadow(color: Color(nsColor: state.color).opacity(state == .idle ? 0 : 0.7), radius: size * 0.35)
+            .opacity(state == .waiting && pulse ? 0.35 : 1)
+            .animation(state == .waiting ? .easeInOut(duration: 0.7).repeatForever() : .default, value: pulse)
+            .onAppear { pulse = true }
+    }
+}
+
+struct AppIcon: View {
+    var host: HostApp?
+    var size: CGFloat = 20
+
+    var body: some View {
+        if let id = host?.bundleID, let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id) {
+            Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+                .resizable()
+                .frame(width: size, height: size)
+        } else {
+            Image(systemName: "terminal")
+                .frame(width: size, height: size)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// "Needs you · 3m" / "Bash: npm test" style subtitle shared by the switcher and menu.
+func statusLine(_ agent: Agent, now: Date = Date()) -> String {
+    var parts = [agent.state.label]
+    if let detail = agent.detail, !detail.isEmpty, agent.state != .idle { parts.append(detail) }
+    parts.append(now.timeIntervalSince(agent.stateSince).compact)
+    return parts.joined(separator: " · ")
+}
+
+/// Lets a SwiftUI region drag its borderless window.
+struct WindowDragArea: NSViewRepresentable {
+    final class DragView: NSView {
+        override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+    }
+    func makeNSView(context: Context) -> NSView { DragView() }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}

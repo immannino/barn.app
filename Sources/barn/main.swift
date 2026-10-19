@@ -1,0 +1,3 @@
+import BarnKit
+
+BarnApp.main()

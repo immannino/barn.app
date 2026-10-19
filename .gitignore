@@ -1,0 +1,9 @@
+.build/
+build/
+*.app
+.swiftpm/
+
+# signing material — never commit
+*.cer
+*.p12
+*.cert
