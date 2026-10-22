@@ -74,4 +74,8 @@ barn has no account, no telemetry and no analytics. Its only network request is 
 
 PRs are welcome, especially new agents and terminals. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for how detection and focusing work, and [docs/RELEASING.md](docs/RELEASING.md) for signing and releases.
 
+## License
+
+[MIT](LICENSE)
+
 <p align="center"><sub>made in a little barn by tony</sub></p>
