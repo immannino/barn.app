@@ -10,6 +10,7 @@ enum Focus {
     @MainActor
     static func open(_ agent: Agent) {
         if CommandLine.arguments.contains("--demo") { return } // made-up agents have no terminals
+        Chimes.shared.play(.jump)
         let host = agent.host.flatMap { $0.pid > 0 ? NSRunningApplication(processIdentifier: $0.pid) : nil }
         if !NSApp.isActive { NSApp.activate() }
         if let host { NSApp.yieldActivation(to: host) }

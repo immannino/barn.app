@@ -17,10 +17,12 @@ Launch flags, for development and screenshots (`open build/barn.app --args …`)
 | flag | |
 |---|---|
 | `--switcher` / `--deck` | open the switcher or deck on launch |
-| `--settings <tab>` | open settings on `general`, `shortcuts`, `agents` or `about` |
+| `--settings <tab>` | open settings on `general`, `looks`, `shortcuts`, `agents` or `about` |
 | `--focus <pid>` | run the jump-to-terminal path for one agent |
 | `--demo` | made-up agents, no scanning (marketing screenshots). Jumps do nothing. |
 | `--demo --demo-script` | a ~17 s scripted story over a brand backdrop, then quits. `./scripts/record-demo.sh` records it to `build/demo/` (MP4, GIF, poster); run that on macOS 26 for Liquid Glass. |
+
+For a live demo with real agents, `./scripts/fill-the-barn.sh` opens five silly Claude Code sessions in toy repos at `~/barn-farm`. Some ask you a question or for permission and some just finish. `./scripts/fill-the-barn.sh stop` quits them.
 
 CLI modes of the same binary: `barn --dump` prints what detection sees, and `barn hook <harness>` is the hook handler. The log is at `~/Library/Logs/barn.log`.
 
@@ -82,6 +84,9 @@ Sources/BarnKit/
   HookCommand.swift       `barn hook <harness>`
   Integrations.swift      one-click hook install/remove
   Notifier.swift          needs-you / finished notifications
+  Chimes.swift            optional synthesized sounds + trackpad haptics
+  Look.swift / LookEffects.swift / LooksPane.swift   per-state looks: model + JSON sharing, effects, editor
+  DeckStyle.swift         deck layout/size/font options, list rows, marquee
   Focus.swift             jump to the exact terminal tab or tmux pane
   Launcher.swift          switcher panel
   Deck.swift              floating deck

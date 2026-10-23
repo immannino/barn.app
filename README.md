@@ -27,6 +27,9 @@ You don't have to start your agents through barn, and there's nothing to configu
 - **The menu bar.** One dot per agent: 🔴 needs you · 🟢 ready · 🔵 working · ⚪ idle.
 - **⌃⌥D: the floating deck.** Liquid Glass tiles that stay on top and follow you across desktops, like a Stream Deck for when you're away from your desk.
 - **Notifications** when an agent needs you. Click one and you're there.
+- **Little barn noises**, if you want them: a bloop when an agent shows up, a doorbell when one needs you, a marimba when one finishes, plus trackpad taps. All off by default.
+- **Looks.** Pick how cards show each state, or make your own: colors, glass tint, and effects like glow, flash, shimmer, wiggle and bounce. Share a look by copying it as JSON; a friend pastes it into settings → looks.
+- **Your deck, your way.** Cards or a compact list (long lines scroll like a ticker), five sizes from xs to xl, any font you have installed, and fade-until-you-point-at-it opacity.
 - **Settings** for every shortcut (with conflict warnings), launch at login, one-click hook setup, and adding your own agents.
 
 ## Works with

@@ -69,10 +69,19 @@ final class DeckController {
             panel.setFrameAutosaveName("BarnDeck")
         }
         // Resize with the agent count, keeping the top-left corner where the user put it.
+        let settings = Settings.shared
+        let layoutChanged = Publishers.MergeMany([
+            settings.$deckColumns.map { _ in () }.eraseToAnyPublisher(),
+            settings.$deckLayout.map { _ in () }.eraseToAnyPublisher(),
+            settings.$deckSize.map { _ in () }.eraseToAnyPublisher(),
+            settings.$deckFont.map { _ in () }.eraseToAnyPublisher(),
+            settings.$deckFontFamily.map { _ in () }.eraseToAnyPublisher(),
+        ])
         sizing = store.$agents
             .map(\.count)
             .removeDuplicates()
-            .combineLatest(Settings.shared.$deckColumns)
+            .map { _ in () }
+            .merge(with: layoutChanged)
             .receive(on: RunLoop.main)
             .sink { [weak self, weak panel] _ in
                 DispatchQueue.main.async {
@@ -111,7 +120,6 @@ struct DeckView: View {
 
     var body: some View {
         let perRow = CommandLine.arguments.contains("--demo") ? 3 : settings.deckColumns
-        let cols = max(1, min(perRow, store.agents.count))
         GlassGroup(spacing: 8) {
             VStack(spacing: 6) {
                 DragHandle()
@@ -124,24 +132,22 @@ struct DeckView: View {
                         .frame(height: 38)
                         .barnGlass(in: Capsule())
                 } else {
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(DeckTile.size), spacing: 8), count: cols),
-                              spacing: 8) {
-                        ForEach(store.agents) { agent in
-                            DeckTile(agent: agent)
-                                .onTapGesture { onOpen(agent) }
-                                .help("\(agent.displayTitle)\n\(agent.cwd)\n\(statusLine(agent))")
-                                .contextMenu {
-                                    Button("jump to \(agent.displayTitle)") { onOpen(agent) }
-                                    Divider()
-                                    deckMenu
-                                }
-                        }
+                    DeckItems(agents: store.agents, columns: perRow) { agent, item in
+                        item
+                            .onTapGesture { onOpen(agent) }
+                            .help("\(agent.displayTitle)\n\(agent.cwd)\n\(statusLine(agent))")
+                            .contextMenu {
+                                Button("jump to \(agent.displayTitle)") { onOpen(agent) }
+                                Divider()
+                                deckMenu
+                            }
                     }
                 }
             }
         }
         .contextMenu { deckMenu }
         .padding(16) // room for the glass shadow
+        .opacity(hovering ? 1 : settings.deckOpacity)
         .onHover { hovering = $0 }
         .animation(.easeOut(duration: 0.2), value: hovering)
         .fixedSize()
@@ -172,67 +178,48 @@ struct DragHandle: View {
 }
 
 struct DeckTile: View {
-    static let size: CGFloat = 86
     var agent: Agent
-    @State private var pulse = false
+    /// Overrides the active look (the looks editor's preview).
+    var look: Look?
+    @ObservedObject private var settings = Settings.shared
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var style: StateStyle { (look ?? settings.activeLook).style(for: agent.state) }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 5) {
-                StateDot(state: agent.state, size: 7)
+        let m = DeckMetrics.current
+        let shape = RoundedRectangle(cornerRadius: m.tileRadius, style: .continuous)
+        let dark = colorScheme == .dark
+        VStack(alignment: .leading, spacing: 2 * m.scale) {
+            HStack(spacing: 5 * m.scale) {
+                StateDot(state: agent.state, size: 7 * m.scale, look: look)
                 Text(agent.kind.badge)
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 9 * m.scale, weight: .bold, design: .rounded))
+                    .foregroundStyle(style.secondaryText(dark: dark))
                 Spacer(minLength: 0)
                 TimelineView(.everyMinute) { ctx in
                     Text(ctx.date.timeIntervalSince(agent.stateSince).coarse)
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .font(.system(size: 9 * m.scale, weight: .medium, design: .rounded))
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(style.secondaryText(dark: dark))
                 }
             }
             Spacer(minLength: 0)
             Text(agent.project)
-                .font(.system(size: 12.5, weight: .semibold))
+                .font(m.font(12.5, .semibold))
+                .foregroundStyle(style.primaryText(dark: dark))
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
             Text(tileDetail)
-                .font(.system(size: 9.5, weight: .medium))
-                .foregroundStyle(detailStyle)
+                .font(m.font(9.5, .medium))
+                .foregroundStyle(style.detailText(for: agent.state, dark: dark))
                 .lineLimit(1)
         }
-        .padding(10)
-        .frame(width: Self.size, height: Self.size)
+        .padding(10 * m.scale)
+        .frame(width: m.tileSize, height: m.tileSize)
         .contentShape(shape)
-        .barnGlass(in: shape, tint: tint, interactive: true)
-        .overlay {
-            if agent.state == .waiting {
-                shape.strokeBorder(Color(nsColor: Brand.coral), lineWidth: 1.5)
-                    .opacity(pulse ? 0.2 : 0.9)
-                    .animation(.easeInOut(duration: 0.8).repeatForever(), value: pulse)
-                    .onAppear { pulse = true }
-                    .onDisappear { pulse = false }
-            }
-        }
-    }
-
-    /// Blue on blue glass is hard to read, so working uses the lighter sky tone.
-    private var detailStyle: AnyShapeStyle {
-        switch agent.state {
-        case .idle: AnyShapeStyle(.secondary)
-        case .working: AnyShapeStyle(Color(nsColor: Brand.sky))
-        default: AnyShapeStyle(Color(nsColor: agent.state.color))
-        }
-    }
-
-    private var tint: Color? {
-        switch agent.state {
-        case .waiting: Color(nsColor: Brand.coral).opacity(0.32)
-        case .ready: Color(nsColor: Brand.mint).opacity(0.26)
-        case .working: Color(nsColor: Brand.electric).opacity(0.26)
-        case .idle: nil
-        }
+        .barnGlass(in: shape, tint: style.tint > 0 ? style.swiftColor.opacity(style.tint) : nil, interactive: true)
+        .stateLook(style, in: shape)
     }
 
     private var tileDetail: String {

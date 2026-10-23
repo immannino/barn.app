@@ -1,6 +1,12 @@
 import AppKit
 import Combine
 
+enum AgentEvent {
+    case arrived(Agent)
+    case left(Agent)
+    case changed(Agent, from: AgentState)
+}
+
 /// Polls the system once a second and publishes the merged agent list.
 ///
 /// Sources, most trusted first: `~/.barn/status/<pid>.json` (anything can write it), the
@@ -8,9 +14,10 @@ import Combine
 @MainActor
 final class AgentStore: ObservableObject {
     @Published private(set) var agents: [Agent] = []
-    /// Called when an already-known agent changes state (not on first sight, so launching
-    /// barn doesn't fire a burst of notifications).
-    var onTransition: ((Agent, _ from: AgentState) -> Void)?
+    /// Agents coming, going and changing state. Nothing fires for the agents found by the first
+    /// scan, so launching barn doesn't set off a burst of notifications and noises.
+    let events = PassthroughSubject<AgentEvent, Never>()
+    private var scanned = false
 
     private let queue = DispatchQueue(label: "barn.scan", qos: .userInitiated)
     private let scanner = ProcessScanner()
@@ -116,8 +123,15 @@ final class AgentStore: ObservableObject {
             }
         }
         for agent in next {
-            if let prev = previous[agent.id], prev.state != agent.state { onTransition?(agent, prev.state) }
+            if let prev = previous[agent.id] {
+                if prev.state != agent.state { events.send(.changed(agent, from: prev.state)) }
+            } else if scanned {
+                events.send(.arrived(agent))
+            }
         }
+        let nextIDs = Set(next.map(\.id))
+        if scanned { for agent in agents where !nextIDs.contains(agent.id) { events.send(.left(agent)) } }
+        scanned = true
         let live = Set(next.map(\.pid))
         lastBusy = lastBusy.filter { live.contains($0.key) }
         acknowledged = acknowledged.filter { id in next.contains { $0.id == id } }

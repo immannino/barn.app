@@ -69,14 +69,10 @@ enum AgentState: Int, Comparable {
         }
     }
 
-    var color: NSColor {
-        switch self {
-        case .waiting: Brand.coral
-        case .ready: Brand.mint
-        case .working: Brand.electric
-        case .idle: .systemGray
-        }
-    }
+    /// From the active look (settings → looks).
+    @MainActor var color: NSColor { Settings.shared.activeLook.style(for: self).nsColor }
+
+    @MainActor var style: StateStyle { Settings.shared.activeLook.style(for: self) }
 }
 
 /// The app hosting an agent's terminal (Ghostty, iTerm2, VS Code, …).

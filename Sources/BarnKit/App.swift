@@ -18,6 +18,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         launcher = LauncherController(store: store, onSettings: openSettings)
         deck = DeckController(store: store, onSettings: openSettings)
         notifier = Notifier(store: store)
+        store.events
+            .sink { event in
+                switch event {
+                case .arrived: Chimes.shared.play(.arrive)
+                case .left: Chimes.shared.play(.leave)
+                case let .changed(agent, from):
+                    if agent.state == .waiting { Chimes.shared.play(.needsYou) }
+                    if agent.state == .ready, from == .working { Chimes.shared.play(.ready) }
+                }
+            }
+            .store(in: &cancellables)
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let menu = NSMenu()
@@ -26,6 +37,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         store.$agents
             .receive(on: RunLoop.main)
             .sink { [weak self] in self?.renderStatusItem($0) }
+            .store(in: &cancellables)
+        // The dots take their colors from the active look.
+        Settings.shared.$activeLookID.combineLatest(Settings.shared.$looks)
+            .dropFirst()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in if let self { self.renderStatusItem(self.store.agents) } }
             .store(in: &cancellables)
 
         // Other menu bar apps coming and going (or a display change) can push the icon behind the notch.

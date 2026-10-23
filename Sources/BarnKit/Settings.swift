@@ -96,11 +96,30 @@ final class Settings: ObservableObject {
     @Published var disabledKinds: Set<String> { didSet { save(disabledKinds, "disabledKinds") } }
     @Published var customKinds: [AgentKind] { didSet { save(customKinds, "customKinds") } }
     @Published var deckColumns: Int { didSet { defaults.set(deckColumns, forKey: "deckColumns") } }
+    @Published var deckLayout: DeckLayout { didSet { defaults.set(deckLayout.rawValue, forKey: "deckLayout") } }
+    @Published var deckSize: DeckSize { didSet { defaults.set(deckSize.rawValue, forKey: "deckSize") } }
+    @Published var deckFont: DeckFont { didSet { defaults.set(deckFont.rawValue, forKey: "deckFont") } }
+    @Published var deckFontFamily: String { didSet { defaults.set(deckFontFamily, forKey: "deckFontFamily") } }
+    /// The deck's opacity while the pointer isn't over it, 0.25…1.
+    @Published var deckOpacity: Double { didSet { defaults.set(deckOpacity, forKey: "deckOpacity") } }
     /// First-run welcome dismissed.
     @Published var welcomed: Bool { didSet { defaults.set(welcomed, forKey: "welcomed") } }
     @Published var notifyWaiting: Bool { didSet { defaults.set(notifyWaiting, forKey: "notifyWaiting") } }
     @Published var notifyReady: Bool { didSet { defaults.set(notifyReady, forKey: "notifyReady") } }
     @Published var notificationSound: Bool { didSet { defaults.set(notificationSound, forKey: "notificationSound") } }
+    /// barn's own noises (Chimes.swift), each cue with its own switch under the master one.
+    @Published var soundsOn: Bool { didSet { defaults.set(soundsOn, forKey: "soundsOn") } }
+    @Published var soundComings: Bool { didSet { defaults.set(soundComings, forKey: "soundComings") } }
+    @Published var soundWaiting: Bool { didSet { defaults.set(soundWaiting, forKey: "soundWaiting") } }
+    @Published var soundReady: Bool { didSet { defaults.set(soundReady, forKey: "soundReady") } }
+    @Published var soundJump: Bool { didSet { defaults.set(soundJump, forKey: "soundJump") } }
+    @Published var soundVolume: Double { didSet { defaults.set(soundVolume, forKey: "soundVolume") } }
+    /// The user's own looks (presets aren't stored), and which look is on: a saved look's id
+    /// or "preset:<name>".
+    @Published var looks: [SavedLook] { didSet { save(looks, "looks") } }
+    @Published var activeLookID: String { didSet { defaults.set(activeLookID, forKey: "activeLookID") } }
+    /// Force Touch trackpad taps alongside the sounds, and as the switcher selection moves.
+    @Published var haptics: Bool { didSet { defaults.set(haptics, forKey: "haptics") } }
     /// Shortcuts that failed to register because another app owns them.
     @Published var hotKeyErrors: Set<String> = []
     /// True while a shortcut field is capturing keys; global hotkeys are unregistered meanwhile.
@@ -117,13 +136,48 @@ final class Settings: ObservableObject {
         customKinds = Self.load("customKinds", default: [])
         let cols = UserDefaults.standard.integer(forKey: "deckColumns")
         deckColumns = cols == 0 ? 4 : cols
+        let d0 = UserDefaults.standard
+        deckLayout = d0.string(forKey: "deckLayout").flatMap(DeckLayout.init) ?? .tiles
+        deckSize = d0.string(forKey: "deckSize").flatMap(DeckSize.init) ?? .m
+        deckFont = d0.string(forKey: "deckFont").flatMap(DeckFont.init) ?? .system
+        deckFontFamily = d0.string(forKey: "deckFontFamily") ?? ""
+        deckOpacity = d0.object(forKey: "deckOpacity") as? Double ?? 1
         let d = UserDefaults.standard
-        d.register(defaults: ["notifyWaiting": true, "notifyReady": false, "notificationSound": true])
+        d.register(defaults: ["notifyWaiting": true, "notifyReady": false, "notificationSound": true,
+                              "soundsOn": false, "soundComings": true, "soundWaiting": true, "soundReady": true,
+                              "soundJump": true, "soundVolume": 0.6, "haptics": false])
         welcomed = d.bool(forKey: "welcomed")
         hiddenIconExplained = d.bool(forKey: "hiddenIconExplained")
         notifyWaiting = d.bool(forKey: "notifyWaiting")
         notifyReady = d.bool(forKey: "notifyReady")
         notificationSound = d.bool(forKey: "notificationSound")
+        soundsOn = d.bool(forKey: "soundsOn")
+        soundComings = d.bool(forKey: "soundComings")
+        soundWaiting = d.bool(forKey: "soundWaiting")
+        soundReady = d.bool(forKey: "soundReady")
+        soundJump = d.bool(forKey: "soundJump")
+        soundVolume = d.double(forKey: "soundVolume")
+        haptics = d.bool(forKey: "haptics")
+        looks = Self.load("looks", default: [])
+        activeLookID = d.string(forKey: "activeLookID") ?? Self.presetID(Look.barn)
+    }
+
+    static func presetID(_ look: Look) -> String { "preset:\(look.name)" }
+
+    /// The look cards are drawn with. Falls back to barn's own if the active one was deleted.
+    var activeLook: Look {
+        looks.first { $0.id == activeLookID }?.look
+            ?? Look.presets.first { Self.presetID($0) == activeLookID }
+            ?? .barn
+    }
+
+    func soundEnabled(for cue: Chimes.Cue) -> Bool {
+        switch cue {
+        case .arrive, .leave: soundComings
+        case .needsYou: soundWaiting
+        case .ready: soundReady
+        case .jump: soundJump
+        }
     }
 
     /// What the scanner should look for right now.

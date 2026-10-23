@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import UserNotifications
 
 /// Posts a notification when an agent starts needing you (and optionally when one finishes).
@@ -8,12 +9,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private let store: AgentStore
     private var center: UNUserNotificationCenter { .current() }
     private var authorized = false
+    private var subscription: AnyCancellable?
 
     init(store: AgentStore) {
         self.store = store
         super.init()
         center.delegate = self
-        store.onTransition = { [weak self] agent, from in self?.transition(agent, from: from) }
+        subscription = store.events.sink { [weak self] event in
+            if case let .changed(agent, from) = event { self?.transition(agent, from: from) }
+        }
     }
 
     private func transition(_ agent: Agent, from: AgentState) {
@@ -38,7 +42,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             content.body = body
             content.userInfo = ["pid": Int(agent.pid)]
             content.threadIdentifier = "barn.\(agent.id)"
-            if Settings.shared.notificationSound { content.sound = .default }
+            // barn's own chime, when it's on for this, stands in for the system sound.
+            if Settings.shared.notificationSound, !Chimes.shared.coversSound(for: agent.state) { content.sound = .default }
             // Same identifier per agent: a new prompt replaces the old banner instead of stacking.
             self.center.add(UNNotificationRequest(identifier: agent.id, content: content, trigger: nil))
         }

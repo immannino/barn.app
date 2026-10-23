@@ -31,10 +31,11 @@ struct SettingsView: View {
     @State var tab = Tab.general
 
     enum Tab: String, CaseIterable {
-        case general, shortcuts, agents, about
+        case general, looks, shortcuts, agents, about
         var icon: String {
             switch self {
             case .general: "gearshape"
+            case .looks: "paintpalette"
             case .shortcuts: "command"
             case .agents: "sparkles"
             case .about: "heart"
@@ -48,6 +49,7 @@ struct SettingsView: View {
             Group {
                 switch tab {
                 case .general: GeneralPane(settings: settings) { tab = .agents }
+                case .looks: LooksPane(settings: settings)
                 case .shortcuts: ShortcutsPane(settings: settings)
                 case .agents: AgentsPane(settings: settings)
                 case .about: AboutPane()
@@ -92,7 +94,7 @@ struct SettingsView: View {
 
 // MARK: Panes
 
-private struct Pane<Content: View>: View {
+struct Pane<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         ScrollView {
@@ -103,7 +105,7 @@ private struct Pane<Content: View>: View {
     }
 }
 
-private struct SectionTitle: View {
+struct SectionTitle: View {
     var text: String
     var body: some View {
         Text(text)
@@ -130,6 +132,28 @@ private struct GeneralPane: View {
             Toggle("when an agent finishes a turn", isOn: $settings.notifyReady)
             Toggle("play a sound", isOn: $settings.notificationSound)
                 .disabled(!settings.notifyWaiting && !settings.notifyReady)
+            SectionTitle(text: "sounds & haptics")
+            Toggle("play little barn sounds", isOn: $settings.soundsOn)
+            VStack(alignment: .leading, spacing: 6) {
+                soundRow("when an agent shows up or leaves", $settings.soundComings, .arrive)
+                soundRow("when an agent needs you", $settings.soundWaiting, .needsYou)
+                soundRow("when an agent finishes a turn", $settings.soundReady, .ready)
+                soundRow("when you jump to an agent", $settings.soundJump, .jump)
+                HStack(spacing: 8) {
+                    Image(systemName: "speaker.fill").foregroundStyle(.secondary)
+                    Slider(value: $settings.soundVolume, in: 0.1...1) { editing in
+                        if !editing { Chimes.shared.preview(.ready) }
+                    }
+                    .frame(maxWidth: 200)
+                    Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
+                }
+            }
+            .padding(.leading, 20)
+            .disabled(!settings.soundsOn)
+            Toggle("trackpad taps", isOn: $settings.haptics)
+            Text("A little tap with each sound, and as the switcher's selection moves under your pointer. You'll feel them on a Force Touch trackpad while a finger is on it.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
             if updater.isAvailable {
                 SectionTitle(text: "updates")
                 HStack {
@@ -141,8 +165,6 @@ private struct GeneralPane: View {
                         .controlSize(.small)
                 }
             }
-            SectionTitle(text: "floating deck")
-            Stepper("tiles per row: \(settings.deckColumns)", value: $settings.deckColumns, in: 1...8)
             SectionTitle(text: "exact status from any agent")
             Text("Point an agent's hooks at barn and it reports exactly when it's working or waiting on you. This works for Codex, Gemini, Copilot, Factory Droid, Qwen, Auggie, Kiro and Cline.")
                 .font(.system(size: 12))
@@ -152,6 +174,18 @@ private struct GeneralPane: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             CodeBlock(text: #"echo '{"state":"waiting","detail":"approve deploy"}' > ~/.barn/status/$PPID.json"#)
+        }
+    }
+}
+
+extension GeneralPane {
+    private func soundRow(_ label: String, _ isOn: Binding<Bool>, _ cue: Chimes.Cue) -> some View {
+        HStack {
+            Toggle(label, isOn: isOn)
+            Spacer()
+            Button { Chimes.shared.preview(cue) } label: { Image(systemName: "play.circle") }
+                .buttonStyle(.borderless)
+                .help("play it")
         }
     }
 }

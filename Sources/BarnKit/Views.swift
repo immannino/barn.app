@@ -1,19 +1,26 @@
 import AppKit
 import SwiftUI
 
-/// Colored status dot; pulses while the agent needs you.
+/// Status dot in the look's color; pulses while the agent needs you, unless the look is still.
 struct StateDot: View {
     var state: AgentState
     var size: CGFloat = 10
+    var look: Look?
+    @ObservedObject private var settings = Settings.shared
+    @Environment(\.colorScheme) private var colorScheme
     @State private var pulse = false
 
     var body: some View {
+        let style = (look ?? settings.activeLook).style(for: state)
+        let pulses = state == .waiting && !style.effects.isEmpty
+        // On a solid card the dot would be the card's own color, so it takes the text's instead.
+        let color = style.isSolid ? style.contrast(dark: colorScheme == .dark) : style.swiftColor
         Circle()
-            .fill(Color(nsColor: state.color).gradient)
+            .fill(color.gradient)
             .frame(width: size, height: size)
-            .shadow(color: Color(nsColor: state.color).opacity(state == .idle ? 0 : 0.7), radius: size * 0.35)
-            .opacity(state == .waiting && pulse ? 0.35 : 1)
-            .animation(state == .waiting ? .easeInOut(duration: 0.7).repeatForever() : .default, value: pulse)
+            .shadow(color: color.opacity(state == .idle ? 0 : 0.7), radius: size * 0.35)
+            .opacity(pulses && pulse ? 0.35 : 1)
+            .animation(pulses ? .easeInOut(duration: 0.7 / style.speed).repeatForever() : .default, value: pulse)
             .onAppear { pulse = true }
     }
 }

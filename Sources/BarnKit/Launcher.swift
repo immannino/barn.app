@@ -267,7 +267,11 @@ struct LauncherView: View {
                                 .id(agent.id)
                                 .contentShape(Rectangle())
                                 .onTapGesture { onOpen(agent) }
-                                .onHover { if $0 { model.selection = i } }
+                                .onHover {
+                                    guard $0, model.selection != i else { return }
+                                    model.selection = i
+                                    Chimes.shared.tick()
+                                }
                         }
                     }
                     .padding(LauncherController.listPadding)
@@ -297,6 +301,7 @@ struct LauncherView: View {
 struct LauncherRow: View {
     var agent: Agent
     var index: Int
+    @ObservedObject private var settings = Settings.shared
 
     var body: some View {
         HStack(spacing: 12) {
@@ -317,7 +322,7 @@ struct LauncherRow: View {
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in
                     Text("\(agent.kind.displayName) · \(statusLine(agent, now: ctx.date))")
                         .font(.system(size: 12))
-                        .foregroundStyle(agent.state == .waiting ? Color(nsColor: Brand.coral) : .secondary)
+                        .foregroundStyle(agent.state == .waiting ? agent.state.style.swiftColor : .secondary)
                         .lineLimit(1)
                 }
             }
@@ -332,5 +337,7 @@ struct LauncherRow: View {
         }
         .padding(.horizontal, 12)
         .frame(height: LauncherController.rowHeight)
+        .stateLook(settings.activeLook.style(for: agent.state),
+                   in: RoundedRectangle(cornerRadius: 14, style: .continuous), motion: false)
     }
 }
