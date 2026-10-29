@@ -20,6 +20,7 @@ final class ProcessScanner {
         var host: HostApp?
         /// CPU fraction of one core since the previous scan.
         var cpu: Double
+        var ppid: pid_t = 0
     }
 
     private let uid = getuid()
@@ -72,7 +73,7 @@ final class ProcessScanner {
             if hasAncestor(pid, in: matches, byPID: byPID) { continue }
             guard let p = byPID[pid], let cwd = Self.cwd(of: pid) else { continue }
             found.append(Found(pid: pid, kind: kind, cwd: cwd, tty: p.tty,
-                               host: host(for: pid, byPID: byPID), cpu: cpuFraction(pid)))
+                               host: host(for: pid, byPID: byPID), cpu: cpuFraction(pid), ppid: p.ppid))
         }
         return found
     }
@@ -83,7 +84,7 @@ final class ProcessScanner {
         let byPID = Dictionary(Self.listProcesses().map { ($0.pid, $0) }, uniquingKeysWith: { a, _ in a })
         guard let p = byPID[pid] else { return nil }
         return Found(pid: pid, kind: kind, cwd: Self.cwd(of: pid) ?? "", tty: p.tty,
-                     host: host(for: pid, byPID: byPID), cpu: cpuFraction(pid))
+                     host: host(for: pid, byPID: byPID), cpu: cpuFraction(pid), ppid: p.ppid)
     }
 
     // MARK: Classification

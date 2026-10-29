@@ -120,6 +120,9 @@ final class Settings: ObservableObject {
     @Published var activeLookID: String { didSet { defaults.set(activeLookID, forKey: "activeLookID") } }
     /// Force Touch trackpad taps alongside the sounds, and as the switcher selection moves.
     @Published var haptics: Bool { didSet { defaults.set(haptics, forKey: "haptics") } }
+    /// Fold a VS Code window's Claude sessions into one agent (the busiest), since the extension
+    /// keeps a process alive for every conversation tab.
+    @Published var onePerWindow: Bool { didSet { defaults.set(onePerWindow, forKey: "onePerWindow") } }
     /// Shortcuts that failed to register because another app owns them.
     @Published var hotKeyErrors: Set<String> = []
     /// True while a shortcut field is capturing keys; global hotkeys are unregistered meanwhile.
@@ -145,7 +148,7 @@ final class Settings: ObservableObject {
         let d = UserDefaults.standard
         d.register(defaults: ["notifyWaiting": true, "notifyReady": false, "notificationSound": true,
                               "soundsOn": false, "soundComings": true, "soundWaiting": true, "soundReady": true,
-                              "soundJump": true, "soundVolume": 0.6, "haptics": false])
+                              "soundJump": true, "soundVolume": 0.6, "haptics": false, "onePerWindow": false])
         welcomed = d.bool(forKey: "welcomed")
         hiddenIconExplained = d.bool(forKey: "hiddenIconExplained")
         notifyWaiting = d.bool(forKey: "notifyWaiting")
@@ -158,6 +161,7 @@ final class Settings: ObservableObject {
         soundJump = d.bool(forKey: "soundJump")
         soundVolume = d.double(forKey: "soundVolume")
         haptics = d.bool(forKey: "haptics")
+        onePerWindow = d.bool(forKey: "onePerWindow")
         looks = Self.load("looks", default: [])
         activeLookID = d.string(forKey: "activeLookID") ?? Self.presetID(Look.barn)
     }

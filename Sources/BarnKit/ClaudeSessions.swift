@@ -13,6 +13,8 @@ final class ClaudeSessions {
         var waitingFor: String?
         var statusUpdatedAt: Date?
         var kind: String?
+        /// Who launched it: "claude-vscode" for the VS Code extension, "cli" for a terminal.
+        var entrypoint: String?
         /// From the transcript.
         var title: String?
         var activity: String?
@@ -49,7 +51,8 @@ final class ClaudeSessions {
                 status: o["status"] as? String ?? "idle",
                 waitingFor: o["waitingFor"] as? String,
                 statusUpdatedAt: (o["statusUpdatedAt"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000) },
-                kind: o["kind"] as? String
+                kind: o["kind"] as? String,
+                entrypoint: o["entrypoint"] as? String
             )
             if let meta = transcript(for: sid) {
                 s.title = meta.title

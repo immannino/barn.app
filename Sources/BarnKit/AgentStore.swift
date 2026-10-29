@@ -18,6 +18,9 @@ final class AgentStore: ObservableObject {
     /// scan, so launching barn doesn't set off a burst of notifications and noises.
     let events = PassthroughSubject<AgentEvent, Never>()
     private var scanned = false
+    /// Every agent found, before "one per window" folds any away. Events compare against this,
+    /// so a hidden session isn't mistaken for a new arrival on every scan.
+    private var tracked: [Agent] = []
 
     private let queue = DispatchQueue(label: "barn.scan", qos: .userInitiated)
     private let scanner = ProcessScanner()
@@ -51,6 +54,9 @@ final class AgentStore: ObservableObject {
         if let i = agents.firstIndex(where: { $0.id == agent.id }), agents[i].state == .ready {
             agents[i].state = .idle
         }
+        if let i = tracked.firstIndex(where: { $0.id == agent.id }), tracked[i].state == .ready {
+            tracked[i].state = .idle
+        }
     }
 
     private func refresh() {
@@ -81,7 +87,7 @@ final class AgentStore: ObservableObject {
     }
 
     private func merge(_ snap: Snapshot) {
-        let previous = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0) })
+        let previous = Dictionary(uniqueKeysWithValues: tracked.map { ($0.id, $0) })
         let now = Date()
         var next: [Agent] = []
 
@@ -106,6 +112,7 @@ final class AgentStore: ObservableObject {
                 agent.state = quietFor < 4 ? .working : .idle
             }
             if let r = snap.explicit[f.pid] { apply(r, to: &agent) }
+            if snap.claude[f.pid]?.entrypoint == "claude-vscode", f.ppid > 1 { agent.windowGroup = f.ppid }
             next.append(agent)
         }
 
@@ -130,14 +137,35 @@ final class AgentStore: ObservableObject {
             }
         }
         let nextIDs = Set(next.map(\.id))
-        if scanned { for agent in agents where !nextIDs.contains(agent.id) { events.send(.left(agent)) } }
+        if scanned { for agent in tracked where !nextIDs.contains(agent.id) { events.send(.left(agent)) } }
         scanned = true
         let live = Set(next.map(\.pid))
         lastBusy = lastBusy.filter { live.contains($0.key) }
         acknowledged = acknowledged.filter { id in next.contains { $0.id == id } }
 
+        tracked = next
+        if Settings.shared.onePerWindow { next = Self.collapseWindows(next) }
         next.sort { ($0.state, $0.project.lowercased(), $0.pid) < ($1.state, $1.project.lowercased(), $1.pid) }
         if next != agents { agents = next }
+    }
+
+    /// One agent per VS Code window: the one that needs you most, else the most recently active.
+    static func collapseWindows(_ agents: [Agent]) -> [Agent] {
+        var best: [pid_t: Agent] = [:]
+        var counts: [pid_t: Int] = [:]
+        for a in agents {
+            guard let g = a.windowGroup else { continue }
+            counts[g, default: 0] += 1
+            if let b = best[g], (b.state, -b.stateSince.timeIntervalSince1970) <= (a.state, -a.stateSince.timeIntervalSince1970) { continue }
+            best[g] = a
+        }
+        return agents.compactMap { a in
+            guard let g = a.windowGroup else { return a }
+            guard best[g]?.pid == a.pid else { return nil }
+            var rep = a
+            rep.collapsed = counts[g, default: 1] - 1
+            return rep
+        }
     }
 
     private func apply(_ s: ClaudeSessions.Session, to agent: inout Agent) {

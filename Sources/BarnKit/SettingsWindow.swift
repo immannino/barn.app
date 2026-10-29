@@ -127,6 +127,11 @@ private struct GeneralPane: View {
             SectionTitle(text: "startup")
             Toggle("open barn at login", isOn: Binding(get: { settings.launchAtLogin },
                                                       set: { settings.launchAtLogin = $0 }))
+            SectionTitle(text: "agents")
+            Toggle("one agent per VS Code window", isOn: $settings.onePerWindow)
+            Text("The Claude Code extension keeps a process for every conversation tab. This shows the busiest one per window and counts the rest.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             SectionTitle(text: "notifications")
             Toggle("when an agent needs you", isOn: $settings.notifyWaiting)
             Toggle("when an agent finishes a turn", isOn: $settings.notifyReady)

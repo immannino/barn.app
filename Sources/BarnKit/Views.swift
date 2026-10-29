@@ -47,6 +47,7 @@ func statusLine(_ agent: Agent, now: Date = Date()) -> String {
     var parts = [agent.state.label]
     if let detail = agent.detail, !detail.isEmpty, agent.state != .idle { parts.append(detail) }
     parts.append(now.timeIntervalSince(agent.stateSince).compact)
+    if agent.collapsed > 0 { parts.append("+\(agent.collapsed) more") }
     return parts.joined(separator: " · ")
 }
 
