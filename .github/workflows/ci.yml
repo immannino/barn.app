@@ -19,3 +19,22 @@ jobs:
       - run: swift test
       - name: Bundle the app (ad-hoc signed)
         run: ./scripts/build-app.sh
+
+  # CPU regression test: the demo in quiet and --stress scenarios, against budgets in
+  # scripts/perf.sh. The table lands in the run summary; profiles are uploaded either way.
+  perf:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)" && swift --version
+      - name: Measure CPU
+        run: ./scripts/perf.sh
+        env:
+          # CI's virtual Macs are slower and noisier than a real one.
+          PERF_BUDGET_SCALE: "1.5"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf
+          path: build/perf

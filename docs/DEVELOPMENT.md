@@ -20,11 +20,23 @@ Launch flags, for development and screenshots (`open build/barn.app --args …`)
 | `--settings <tab>` | open settings on `general`, `looks`, `shortcuts`, `agents` or `about` |
 | `--focus <pid>` | run the jump-to-terminal path for one agent |
 | `--demo` | made-up agents, no scanning (marketing screenshots). Jumps do nothing. |
+| `--demo --stress` | worst case for perf: 24 agents, every effect on every state, a state change every 0.25 s. |
 | `--demo --demo-script` | a ~17 s scripted story over a brand backdrop, then quits. `./scripts/record-demo.sh` records it to `build/demo/` (MP4, GIF, poster); run that on macOS 26 for Liquid Glass. |
 
 For a live demo with real agents, `./scripts/fill-the-barn.sh` opens five silly Claude Code sessions in toy repos at `~/barn-farm`. Some ask you a question or for permission and some just finish. `./scripts/fill-the-barn.sh stop` quits them.
 
 CLI modes of the same binary: `barn --dump` prints what detection sees, and `barn hook <harness>` is the hook handler. The log is at `~/Library/Logs/barn.log`.
+
+## Performance
+
+barn lives in the menu bar all day, so it should sit near 0% CPU. `./scripts/perf.sh` runs the demo in a
+few scenarios (menu bar only, deck, list, `--stress`) and fails if CPU goes over a budget. CI runs it on
+every push and puts the table in the run summary, with a `sample` profile of each scenario as an artifact.
+
+Animations stay cheap by running in Core Animation (`LookEffects.swift`, `StateDot`, `Marquee`). The window
+server plays them, so barn does no work between changes. Avoid `TimelineView(.animation)`,
+`.repeatForever()` and similar per-frame SwiftUI updates for anything that runs while idle: each one
+re-lays out the whole deck every frame.
 
 ## How detection works
 

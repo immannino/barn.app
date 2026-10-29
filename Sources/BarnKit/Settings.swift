@@ -170,7 +170,8 @@ final class Settings: ObservableObject {
 
     /// The look cards are drawn with. Falls back to barn's own if the active one was deleted.
     var activeLook: Look {
-        looks.first { $0.id == activeLookID }?.look
+        if Stress.isOn { return Stress.look }
+        return looks.first { $0.id == activeLookID }?.look
             ?? Look.presets.first { Self.presetID($0) == activeLookID }
             ?? .barn
     }

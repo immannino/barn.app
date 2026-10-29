@@ -200,6 +200,12 @@ final class AgentStore: ObservableObject {
 
     /// `--demo`: made-up agents for screenshots, no scanning.
     private func startDemo() {
+        if Stress.isOn {
+            agents = Stress.agents()
+            demoAgents { _ in }
+            Stress.run(store: self)
+            return
+        }
         let ghostty = HostApp(bundleID: "com.mitchellh.ghostty", name: "Ghostty", pid: 0)
         let kind = { (id: String) in AgentKind.builtIns.first { $0.id == id }! }
         let now = Date()

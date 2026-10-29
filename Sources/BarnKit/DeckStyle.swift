@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 /// How the floating deck is laid out. Personal preferences, not part of a shared look: pasting
@@ -112,6 +113,8 @@ struct DeckRow: View {
 /// Content that fits sits still. Content that overflows waits a few seconds, then glides left
 /// like a news ticker until it comes back around, and waits again. Edges fade while it's cut
 /// off. With Reduce Motion it just truncates; the row's tooltip has the full text either way.
+/// The scrolling copy is a picture of the content that Core Animation slides, so a ticking row
+/// costs nothing between redraws.
 struct Marquee<Content: View>: View {
     @ViewBuilder var content: Content
     var pause: Double = 3
@@ -121,6 +124,8 @@ struct Marquee<Content: View>: View {
     /// Shifts this marquee's schedule so a list of them doesn't scroll in lockstep.
     var phase: Double = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.displayScale) private var displayScale
+    @Environment(\.colorScheme) private var colorScheme
     @State private var contentWidth: CGFloat = 0
     @State private var boxWidth: CGFloat = 0
 
@@ -137,12 +142,8 @@ struct Marquee<Content: View>: View {
         content.lineLimit(1).hidden()
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .leading) {
-                if overflows && !reduceMotion {
-                    TimelineView(.animation(minimumInterval: 1 / 30)) { ctx in
-                        HStack(spacing: gap) { content.fixedSize(); content.fixedSize() }
-                            .offset(x: offset(at: ctx.date.timeIntervalSinceReferenceDate))
-                    }
-                    .mask(fade)
+                if overflows && !reduceMotion, let strip {
+                    MarqueeStrip(image: strip, distance: contentWidth + gap, pause: pause, speed: speed, phase: phase)
                 } else if overflows {
                     content.lineLimit(1).truncationMode(.tail) // Reduce Motion
                 } else {
@@ -157,17 +158,101 @@ struct Marquee<Content: View>: View {
             .clipped()
     }
 
-    private func offset(at t: Double) -> CGFloat {
-        let distance = Double(contentWidth + gap)
-        let cycle = pause + distance / speed
-        let p = (t + phase * cycle).truncatingRemainder(dividingBy: cycle)
-        return p < pause ? 0 : -CGFloat((p - pause) * speed)
+    /// Two copies of the content, a gap apart, as one image.
+    private var strip: NSImage? {
+        let renderer = ImageRenderer(content: HStack(spacing: gap) { content.fixedSize(); content.fixedSize() }
+            .environment(\.colorScheme, colorScheme))
+        renderer.scale = displayScale
+        return renderer.nsImage
+    }
+}
+
+/// Slides a marquee's image left by `distance` after each pause, forever, with faded edges.
+private struct MarqueeStrip: NSViewRepresentable {
+    var image: NSImage
+    var distance: CGFloat
+    var pause: Double
+    var speed: Double
+    var phase: Double
+
+    func makeNSView(context: Context) -> MarqueeView { MarqueeView() }
+    func updateNSView(_ view: MarqueeView, context: Context) {
+        view.set(image: image, timing: .init(distance: distance, pause: pause, speed: speed, phase: phase))
+    }
+}
+
+final class MarqueeView: NSView {
+    struct Timing: Equatable {
+        var distance: CGFloat
+        var pause: Double
+        var speed: Double
+        var phase: Double
     }
 
-    private var fade: some View {
-        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.04),
-                               .init(color: .black, location: 0.9), .init(color: .clear, location: 1)],
-                       startPoint: .leading, endPoint: .trailing)
+    private let strip = CALayer()
+    private let fade = CAGradientLayer()
+    private var timing: Timing?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        strip.anchorPoint = CGPoint(x: 0, y: 0.5)
+        layer?.addSublayer(strip)
+        fade.startPoint = CGPoint(x: 0, y: 0.5)
+        fade.endPoint = CGPoint(x: 1, y: 0.5)
+        fade.colors = [NSColor.clear, .black, .black, .clear].map(\.cgColor)
+        fade.locations = [0, 0.04, 0.9, 1]
+        layer?.mask = fade
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
+
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    func set(image: NSImage, timing: Timing) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        strip.contents = image
+        strip.bounds = CGRect(origin: .zero, size: image.size)
+        layoutStrip()
+        CATransaction.commit()
+        if timing != self.timing {
+            self.timing = timing
+            animate()
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        fade.frame = bounds
+        layoutStrip()
+        CATransaction.commit()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        animate()
+    }
+
+    private func layoutStrip() {
+        strip.position = CGPoint(x: 0, y: bounds.midY)
+    }
+
+    private func animate() {
+        strip.removeAnimation(forKey: "scroll")
+        guard let timing, window != nil, timing.distance > 0 else { return }
+        let cycle = timing.pause + Double(timing.distance) / timing.speed
+        let a = CAKeyframeAnimation(keyPath: "position.x")
+        a.values = [0, 0, -timing.distance]
+        a.keyTimes = [0, NSNumber(value: timing.pause / cycle), 1]
+        a.duration = cycle
+        a.repeatCount = .infinity
+        a.isRemovedOnCompletion = false
+        a.timeOffset = (Date.timeIntervalSinceReferenceDate + timing.phase * cycle).truncatingRemainder(dividingBy: cycle)
+        strip.add(a, forKey: "scroll")
     }
 }
 
