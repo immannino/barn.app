@@ -99,6 +99,10 @@ struct Agent: Identifiable, Equatable {
     var detail: String?
     /// Whether state comes from the agent itself (true) or a CPU heuristic.
     var precise: Bool
+    /// The VS Code window (extension host process) a Claude session belongs to, for grouping.
+    var windowGroup: pid_t?
+    /// Other sessions in the same window folded into this one (Settings → one agent per window).
+    var collapsed = 0
 
     var project: String { (cwd as NSString).lastPathComponent }
     var displayTitle: String { title ?? project }

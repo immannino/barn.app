@@ -223,6 +223,11 @@ struct DeckTile: View {
     }
 
     private var tileDetail: String {
+        let base = tileState
+        return agent.collapsed > 0 ? "\(base) · +\(agent.collapsed)" : base
+    }
+
+    private var tileState: String {
         switch agent.state {
         case .waiting: agent.detail?.split(separator: "·").first.map { $0.trimmingCharacters(in: .whitespaces) } ?? "needs you"
         case .working: agent.detail.map { String($0.split(separator: ":").first ?? "") } ?? "working"
