@@ -43,25 +43,57 @@ struct DeckMetrics {
     var design: Font.Design
     /// An installed font family; nil uses the system font in `design`.
     var family: String?
+    /// The look's skin, which sets its own font and corners.
+    var skin: Skin? = nil
+
+    /// Pins the card size regardless of the setting (showcase recordings).
+    @MainActor static var sizeOverride: DeckSize?
 
     @MainActor static var current: DeckMetrics {
         let settings = Settings.shared
         let family = settings.deckFont == .custom && NSFontManager.shared.availableMembers(ofFontFamily: settings.deckFontFamily) != nil
             ? settings.deckFontFamily : nil
-        return DeckMetrics(scale: settings.deckSize.scale, design: settings.deckFont.design, family: family)
+        return DeckMetrics(scale: (sizeOverride ?? settings.deckSize).scale, design: settings.deckFont.design, family: family)
+    }
+
+    /// The same sizes in a skin's font and corners.
+    @MainActor func skinned(_ skin: Skin?) -> DeckMetrics {
+        guard let skin else { return self }
+        var m = self
+        m.skin = skin
+        m.family = skin.family
+        m.design = skin.fallback.design
+        return m
     }
 
     var tileSize: CGFloat { (86 * scale).rounded() }
-    var tileRadius: CGFloat { 20 * scale }
+    var tileRadius: CGFloat { CGFloat(skin?.corner ?? 20) * scale }
     var spacing: CGFloat { (8 * scale).rounded() }
     var rowWidth: CGFloat { (250 * scale).rounded() }
     var rowHeight: CGFloat { (34 * scale).rounded() }
-    var rowRadius: CGFloat { 12 * scale }
+    var rowRadius: CGFloat { CGFloat(min(skin?.corner ?? 12, 12)) * scale }
+    /// Room inside a card for the skin's frame.
+    var inset: CGFloat {
+        switch skin?.border {
+        case .double: 3 * scale
+        case .thick, .bevel: 1.5 * scale
+        case .heavy: 4 * scale
+        default: 0
+        }
+    }
 
-    func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+    @MainActor func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        if let skin { return skin.font(size * scale, weight) }
         if let family { return .custom(family, size: size * scale).weight(weight) }
         return .system(size: size * scale, weight: weight, design: design)
     }
+
+    /// Small print (badges, times): rounded system text on glass, the deck font on a skin.
+    @MainActor func small(_ size: CGFloat, _ weight: Font.Weight) -> Font {
+        skin == nil ? .system(size: size * scale, weight: weight, design: .rounded) : font(size, weight)
+    }
+
+    func cased(_ s: String) -> String { skin?.cased(s) ?? s }
 }
 
 /// One agent as a compact list row: dot, name, what it's doing (scrolling when it doesn't fit), time.
@@ -71,32 +103,58 @@ struct DeckRow: View {
     @ObservedObject private var settings = Settings.shared
     @Environment(\.colorScheme) private var colorScheme
 
-    private var style: StateStyle { (look ?? settings.activeLook).style(for: agent.state) }
-
     var body: some View {
-        let m = DeckMetrics.current
+        let look = look ?? settings.activeLook
+        let style = look.style(for: agent.state)
+        BlinkGate(style: style) { inverted in row(look, style: style, inverted: inverted) }
+            .overlay { if settings.confetti { ConfettiOverlay(state: agent.state).allowsHitTesting(false) } }
+    }
+
+    private func row(_ look: Look, style: StateStyle, inverted: Bool) -> some View {
+        let m = DeckMetrics.current.skinned(look.skin)
         let shape = RoundedRectangle(cornerRadius: m.rowRadius, style: .continuous)
         let dark = colorScheme == .dark
-        HStack(spacing: 7 * m.scale) {
-            StateDot(state: agent.state, size: 7 * m.scale, look: look)
+        let paint = look.paint(for: agent.state, dark: dark, inverted: inverted)
+        let bar = look.skin?.titleBar
+        let barPaint = look.barPaint(for: agent.state, dark: dark, inverted: inverted)
+        return HStack(spacing: 7 * m.scale) {
+            if let skin = look.skin, skin.mascot != .none {
+                MascotView(kind: skin.mascot, state: agent.state,
+                           accent: style.resolved(dark: dark), ink: skin.textColor, speed: style.speed)
+                    .frame(width: m.rowHeight * 0.9, height: m.rowHeight * 0.75)
+            } else {
+                StateDot(state: agent.state, size: 7 * m.scale, look: look, inverted: inverted)
+            }
             // Golden-ratio steps spread the rows' scroll times evenly whatever the pids are.
             Marquee(phase: (Double(agent.pid) * 0.618).truncatingRemainder(dividingBy: 1)) {
                 HStack(spacing: 6 * m.scale) {
-                    Text(agent.displayTitle).font(m.font(12, .semibold)).foregroundStyle(style.primaryText(dark: dark))
-                    Text(detail).font(m.font(11, .medium)).foregroundStyle(style.detailText(for: agent.state, dark: dark))
+                    Text(m.cased(agent.displayTitle)).font(m.font(12, .semibold)).foregroundStyle(paint.primary)
+                    Text(m.cased(detail)).font(m.font(11, .medium)).foregroundStyle(paint.detail)
                 }
             }
+            if style.effects.contains(.cursor) {
+                BlockCursor(color: paint.cursor, speed: style.speed)
+                    .frame(width: 6 * m.scale, height: 11 * m.scale)
+            }
             TimelineView(.everyMinute) { ctx in
-                Text(ctx.date.timeIntervalSince(agent.stateSince).coarse)
+                Text(m.cased(ctx.date.timeIntervalSince(agent.stateSince).coarse))
                     .font(m.font(10, .medium))
                     .monospacedDigit()
-                    .foregroundStyle(style.secondaryText(dark: dark))
+                    .foregroundStyle(paint.secondary)
             }
         }
-        .padding(.horizontal, 11 * m.scale)
+        .padding(.leading, bar == nil ? 0 : 5 * m.scale)
+        .padding(.horizontal, 11 * m.scale + m.inset)
         .frame(width: m.rowWidth, height: m.rowHeight)
+        .overlay(alignment: .leading) {
+            // Too short for a title bar, a row shows its color as a strip down the side.
+            if let bar, let barPaint {
+                BarStrip(bar: bar, paint: barPaint, scale: m.scale, corner: max(0, m.rowRadius - m.inset))
+                    .padding(m.inset)
+            }
+        }
         .contentShape(shape)
-        .barnGlass(in: shape, tint: style.tint > 0 ? style.swiftColor.opacity(style.tint) : nil, interactive: true)
+        .cardSurface(look, style: style.inverted(inverted), paint: paint, in: shape, scale: m.scale, state: agent.state)
         .stateLook(style, in: shape, sideways: true)
     }
 
@@ -265,16 +323,19 @@ struct DeckItems<Item: View>: View {
     @ObservedObject private var settings = Settings.shared
 
     var body: some View {
+        let skin = (look ?? settings.activeLook).skin
         let m = DeckMetrics.current
+        // Room for drop shadows between cards.
+        let shadow = skin?.shadow == .hard ? Skin.shadowOffset * m.scale : 0
         switch settings.deckLayout {
         case .tiles:
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(m.tileSize), spacing: m.spacing),
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(m.tileSize), spacing: m.spacing + shadow),
                                      count: max(1, min(columns, agents.count))),
-                      spacing: m.spacing) {
+                      spacing: m.spacing + shadow) {
                 ForEach(agents) { agent in decorate(agent, AnyView(DeckTile(agent: agent, look: look))) }
             }
         case .list:
-            VStack(spacing: m.spacing * 0.75) {
+            VStack(spacing: m.spacing * 0.75 + shadow) {
                 ForEach(agents) { agent in decorate(agent, AnyView(DeckRow(agent: agent, look: look))) }
             }
         }

@@ -120,6 +120,8 @@ final class Settings: ObservableObject {
     @Published var activeLookID: String { didSet { defaults.set(activeLookID, forKey: "activeLookID") } }
     /// Force Touch trackpad taps alongside the sounds, and as the switcher selection moves.
     @Published var haptics: Bool { didSet { defaults.set(haptics, forKey: "haptics") } }
+    /// Confetti bursts over a card when its agent finishes.
+    @Published var confetti: Bool { didSet { defaults.set(confetti, forKey: "confettiOnDone") } }
     /// Fold a VS Code window's Claude sessions into one agent (the busiest), since the extension
     /// keeps a process alive for every conversation tab.
     @Published var onePerWindow: Bool { didSet { defaults.set(onePerWindow, forKey: "onePerWindow") } }
@@ -148,7 +150,7 @@ final class Settings: ObservableObject {
         let d = UserDefaults.standard
         d.register(defaults: ["notifyWaiting": true, "notifyReady": false, "notificationSound": true,
                               "soundsOn": false, "soundComings": true, "soundWaiting": true, "soundReady": true,
-                              "soundJump": true, "soundVolume": 0.6, "haptics": false, "onePerWindow": false])
+                              "soundJump": true, "soundVolume": 0.6, "haptics": false, "onePerWindow": false, "confettiOnDone": false])
         welcomed = d.bool(forKey: "welcomed")
         hiddenIconExplained = d.bool(forKey: "hiddenIconExplained")
         notifyWaiting = d.bool(forKey: "notifyWaiting")
@@ -161,12 +163,19 @@ final class Settings: ObservableObject {
         soundJump = d.bool(forKey: "soundJump")
         soundVolume = d.double(forKey: "soundVolume")
         haptics = d.bool(forKey: "haptics")
+        confetti = d.bool(forKey: "confettiOnDone")
         onePerWindow = d.bool(forKey: "onePerWindow")
         looks = Self.load("looks", default: [])
         activeLookID = d.string(forKey: "activeLookID") ?? Self.presetID(Look.barn)
     }
 
     static func presetID(_ look: Look) -> String { "preset:\(look.name)" }
+
+    /// Every look you can pick, presets first, as (id, look).
+    var allLooks: [(id: String, look: Look)] {
+        Look.presets.filter { Look.isListed($0) || Self.presetID($0) == activeLookID }.map { (Self.presetID($0), $0) }
+            + looks.map { ($0.id, $0.look) }
+    }
 
     /// The look cards are drawn with. Falls back to barn's own if the active one was deleted.
     var activeLook: Look {

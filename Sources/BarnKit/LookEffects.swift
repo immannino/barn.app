@@ -31,7 +31,8 @@ private struct StateLookModifier<S: InsettableShape>: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        let drawn = effects.filter { !$0.moves }
+        // Blink and cursor are drawn by the card itself.
+        let drawn = effects.filter { !$0.moves && $0 != .blink && $0 != .cursor }
         let layered = content.overlay {
             if !drawn.isEmpty {
                 // Reduce Motion holds them still: a steady border or halo instead of animation.
@@ -196,7 +197,7 @@ final class EffectView: NSView {
         let paint = EffectPainter(style: config.style, bounds: bounds, color: color, rainbow: rainbow,
                                   still: config.still, path: path)
         // Bottom to top: fills under borders, halos last.
-        for effect in [Effect.strobe, .shimmer, .lines, .orbit, .pulse, .flash, .rainbow, .glow]
+        for effect in [Effect.aurora, .wave, .bubbles, .strobe, .shimmer, .lines, .orbit, .pulse, .flash, .rainbow, .glow]
         where config.effects.contains(effect) {
             paint.layers(for: effect).forEach(root.addSublayer)
         }
@@ -322,10 +323,137 @@ private struct EffectPainter {
 
         case .wiggle, .bounce:
             return [] // they move the card itself; see StateLookModifier
+        case .blink, .cursor:
+            return [] // drawn by the card itself; see BlinkGate and BlockCursor
+
+        case .wave:
+            // Two layers of liquid in the bottom third, sliding opposite ways under a bright crest.
+            let level = bounds.height * (0.72 - 0.12 * k)
+            let layers = [(alpha: 0.22, wavelength: bounds.width * 0.8, amp: 3.0, dir: 1.0, period: 3.4),
+                          (alpha: 0.38, wavelength: bounds.width * 0.55, amp: 2.4, dir: -1.0, period: 2.6)]
+                .map { w -> CALayer in
+                    let liquid = CAShapeLayer()
+                    liquid.frame = bounds
+                    liquid.path = wavePath(level: level, wavelength: w.wavelength, amp: w.amp * (0.6 + 0.6 * k), closed: true)
+                    liquid.fillColor = color(w.alpha + 0.25 * k)
+                    let crest = CAShapeLayer()
+                    crest.frame = bounds
+                    crest.path = wavePath(level: level, wavelength: w.wavelength, amp: w.amp * (0.6 + 0.6 * k), closed: false)
+                    crest.strokeColor = CGColor(gray: 1, alpha: 0.55 * k)
+                    crest.fillColor = nil
+                    crest.lineWidth = 1
+                    let slosh = CALayer()
+                    slosh.frame = bounds
+                    slosh.addSublayer(liquid)
+                    slosh.addSublayer(crest)
+                    if !still {
+                        let slide = CABasicAnimation(keyPath: "transform.translation.x")
+                        slide.fromValue = w.dir > 0 ? -w.wavelength : 0
+                        slide.toValue = w.dir > 0 ? 0 : -w.wavelength
+                        slosh.add(loop(slide, period: w.period / style.speed), forKey: "slosh")
+                    }
+                    return slosh
+                }
+            return [clipped(layers, to: shape(fill: .black))]
+
+        case .aurora:
+            // Three soft glows, the state's hue and its neighbors, drifting and stretching slowly.
+            let base = NSColor(cgColor: color)?.usingColorSpace(.sRGB) ?? .green
+            var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            base.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+            let glows = [0.0, 0.13, -0.16].enumerated().map { i, shift -> CALayer in
+                let hue = (h + shift + 1).truncatingRemainder(dividingBy: 1)
+                let c = NSColor(hue: hue, saturation: max(0.55, s), brightness: max(0.8, b), alpha: 1).cgColor
+                let g = CAGradientLayer()
+                g.type = .radial
+                g.colors = [c.copy(alpha: 0.5 * k)!, c.copy(alpha: 0.18 * k)!, c.copy(alpha: 0)!]
+                g.locations = [0, 0.55, 1]
+                g.startPoint = CGPoint(x: 0.5, y: 0.5)
+                g.endPoint = CGPoint(x: 1, y: 1)
+                g.bounds = CGRect(x: 0, y: 0, width: bounds.width * 0.95, height: bounds.height * 0.8)
+                let x0 = bounds.width * (0.2 + 0.3 * Double(i)), y0 = bounds.height * (0.35 + 0.15 * Double(i % 2))
+                g.position = CGPoint(x: x0, y: y0)
+                if !still {
+                    let period: Double = (9 + 3 * Double(i)) / style.speed
+                    let phase: Double = Double(i) * 2.1
+                    let dx: Double = bounds.width * 0.22, dy: Double = bounds.height * 0.12
+                    g.add(sampled("position", period: period) { (t: Double) -> Any in
+                        let turn: Double = 2 * .pi * t / period + phase
+                        return NSValue(point: NSPoint(x: x0 + dx * sin(turn), y: y0 + dy * cos(turn)))
+                    }, forKey: "drift")
+                    let breath: Double = period * 0.7
+                    g.add(sampled("transform.scale.x", period: breath) { (t: Double) -> Any in 1 + 0.25 * sin(2 * .pi * t / breath) },
+                          forKey: "stretch")
+                }
+                return g
+            }
+            return [clipped(glows, to: shape(fill: .black))]
+
+        case .bubbles:
+            guard !still else { return [] }
+            let emitter = CAEmitterLayer()
+            emitter.frame = bounds
+            emitter.emitterShape = .line
+            emitter.emitterSize = CGSize(width: bounds.width * 0.8, height: 1)
+            emitter.emitterPosition = CGPoint(x: bounds.midX, y: bounds.maxY + 3)
+            let cell = CAEmitterCell()
+            cell.contents = Self.bubble
+            cell.birthRate = Float(0.8 + 1.6 * k) * Float(style.speed) * Float(bounds.width / 80)
+            cell.velocity = 16 * style.speed
+            cell.velocityRange = 6
+            cell.lifetime = Float(bounds.height / (12 * style.speed)) + 0.5
+            // Straight up in this flipped view; a little sway.
+            cell.emissionLongitude = -.pi / 2
+            cell.emissionRange = 0.25
+            cell.scale = 0.22
+            cell.scaleRange = 0.12
+            cell.alphaSpeed = -0.25
+            cell.color = color(0.5 + 0.5 * k)
+            emitter.emitterCells = [cell]
+            // Start mid-stream rather than empty.
+            emitter.beginTime = CACurrentMediaTime() - Double(cell.lifetime)
+            return [clipped([emitter], to: shape(fill: .black))]
         }
     }
 
     // MARK: Pieces
+
+    /// A white bubble with a glint, tinted by each emitter cell's color.
+    private static let bubble: CGImage? = {
+        let size = 32
+        guard let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        let r = CGRect(x: 2, y: 2, width: size - 4, height: size - 4)
+        ctx.setFillColor(CGColor(gray: 1, alpha: 0.18))
+        ctx.fillEllipse(in: r)
+        ctx.setStrokeColor(CGColor(gray: 1, alpha: 0.95))
+        ctx.setLineWidth(2)
+        ctx.strokeEllipse(in: r)
+        ctx.setFillColor(CGColor(gray: 1, alpha: 1))
+        ctx.fillEllipse(in: CGRect(x: 9, y: 18, width: 7, height: 5))
+        return ctx.makeImage()
+    }()
+
+    /// A sine wave at `level` across twice the card plus a wavelength, so sliding it by one
+    /// wavelength loops seamlessly; closed, it fills down to the bottom.
+    private func wavePath(level: CGFloat, wavelength: CGFloat, amp: CGFloat, closed: Bool) -> CGPath {
+        let p = CGMutablePath()
+        let start = -wavelength
+        let end = bounds.width + wavelength
+        p.move(to: CGPoint(x: start, y: level))
+        var x = start
+        while x <= end {
+            p.addLine(to: CGPoint(x: x, y: level + amp * sin(2 * .pi * (x - start) / wavelength)))
+            x += 2
+        }
+        if closed {
+            p.addLine(to: CGPoint(x: end, y: bounds.maxY + 2))
+            p.addLine(to: CGPoint(x: start, y: bounds.maxY + 2))
+            p.closeSubpath()
+        }
+        return p
+    }
 
     private func shape(fill: CGColor) -> CAShapeLayer {
         let l = CAShapeLayer()
