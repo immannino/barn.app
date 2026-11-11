@@ -43,6 +43,8 @@ final class LauncherController: NSObject, NSWindowDelegate {
     /// Transparent margin so the glass shadow isn't clipped by the window edge.
     static let margin: CGFloat = 20
     static let maxRows = 8
+    /// The results panel's title bar, on looks whose skin has one.
+    static let titleHeight: CGFloat = 22
 
     init(store: AgentStore, onSettings: @escaping () -> Void) {
         self.store = store
@@ -121,7 +123,8 @@ final class LauncherController: NSObject, NSWindowDelegate {
 
     private func height() -> CGFloat {
         let rows = max(1, min(Self.maxRows, model.filter(store.agents).count))
-        return Self.margin * 2 + Self.searchHeight + Self.gap + CGFloat(rows) * Self.rowHeight + Self.listPadding * 2
+        let bar = Settings.shared.activeLook.skin?.titleBar == nil ? 0 : Self.titleHeight
+        return Self.margin * 2 + Self.searchHeight + Self.gap + bar + CGFloat(rows) * Self.rowHeight + Self.listPadding * 2
     }
 
     private func resize() {
@@ -184,17 +187,39 @@ struct LauncherView: View {
     @ObservedObject var model: LauncherModel
     var onOpen: (Agent) -> Void
     var onSettings: () -> Void
+    @ObservedObject private var settings = Settings.shared
     @FocusState private var searchFocused: Bool
     @Namespace private var selectionNS
+
+    private var skin: Skin? { settings.activeLook.skin }
 
     var body: some View {
         let results = model.filter(store.agents)
         GlassGroup(spacing: LauncherController.gap) {
             VStack(spacing: LauncherController.gap) {
-                searchBar
-                    .barnGlass(in: Capsule())
-                resultList(results)
-                    .barnGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                if let skin {
+                    searchBar
+                        .panelSurface(skin, in: RoundedRectangle(cornerRadius: skin.corner))
+                    VStack(spacing: 0) {
+                        if let bar = skin.titleBar,
+                           let paint = settings.activeLook.barPaint(for: .working, dark: skin.colorScheme == .dark) {
+                            SkinTitleBar(bar: Self.panelBar(bar), paint: paint, scale: 1, corner: skin.corner) {
+                                Text(skin.cased("barn"))
+                                    .font(skin.font(12, .bold))
+                                    .barGap(bar, paint, scale: 1)
+                                    .frame(maxWidth: .infinity, alignment: bar.buttons == .win || bar.buttons == .xp ? .leading : .center)
+                            }
+                            .padding([.top, .horizontal], DeckMetrics(scale: 1, design: .default, family: nil, skin: skin).inset)
+                        }
+                        resultList(results)
+                    }
+                    .panelSurface(skin, in: RoundedRectangle(cornerRadius: skin.corner))
+                } else {
+                    searchBar
+                        .barnGlass(in: Capsule())
+                    resultList(results)
+                        .barnGlass(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
             }
         }
         .padding(LauncherController.margin)
@@ -203,24 +228,40 @@ struct LauncherView: View {
 
     private var searchBar: some View {
         HStack(spacing: 12) {
-            Image(systemName: "sparkle.magnifyingglass")
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(.secondary)
-            TextField("search agents", text: $model.query)
+            if let skin {
+                Text(skin.prompt ?? ">")
+                    .font(skin.font(21, .bold))
+                    .fixedSize()
+            } else {
+                Image(systemName: "sparkle.magnifyingglass")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            TextField(skin?.cased("search agents") ?? "search agents", text: $model.query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 21, weight: .regular))
+                .font(skin?.font(21) ?? .system(size: 21, weight: .regular))
                 .focused($searchFocused)
                 .onChange(of: model.query) { model.selection = 0 }
             ForEach(summary, id: \.label) { chip in
                 HStack(spacing: 5) {
-                    Circle().fill(Color(nsColor: chip.state.color)).frame(width: 6, height: 6)
-                    Text(chip.label)
+                    if skin != nil {
+                        Rectangle().fill(Color(nsColor: chip.state.color)).frame(width: 6, height: 6)
+                    } else {
+                        Circle().fill(Color(nsColor: chip.state.color)).frame(width: 6, height: 6)
+                    }
+                    Text(skin?.cased(chip.label) ?? chip.label)
                 }
-                .font(.system(size: 11.5, weight: .medium))
+                .font(skin?.font(11.5, .medium) ?? .system(size: 11.5, weight: .medium))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 9)
                 .frame(height: 24)
-                .background(Capsule().fill(.primary.opacity(0.06)))
+                .background {
+                    if let skin {
+                        Rectangle().strokeBorder(Color(nsColor: skin.dimColor), lineWidth: 1)
+                    } else {
+                        Capsule().fill(.primary.opacity(0.06))
+                    }
+                }
             }
             Button(action: onSettings) {
                 Image(systemName: "gearshape")
@@ -240,11 +281,11 @@ struct LauncherView: View {
     private func resultList(_ results: [Agent]) -> some View {
         if results.isEmpty {
             VStack(spacing: 4) {
-                Text(store.agents.isEmpty ? "no agents running" : "no matches")
-                    .font(.system(size: 13, weight: .medium))
+                Text(cased(store.agents.isEmpty ? "no agents running" : "no matches"))
+                    .font(skin?.font(13, .medium) ?? .system(size: 13, weight: .medium))
                 if store.agents.isEmpty {
-                    Text("start claude, codex, vibe… in any terminal")
-                        .font(.system(size: 11.5))
+                    Text(cased("start claude, codex, vibe… in any terminal"))
+                        .font(skin?.font(11.5) ?? .system(size: 11.5))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -254,9 +295,14 @@ struct LauncherView: View {
                 ScrollView {
                     VStack(spacing: 0) {
                         ForEach(Array(results.enumerated()), id: \.element.id) { i, agent in
-                            LauncherRow(agent: agent, index: i)
+                            LauncherRow(agent: agent, index: i, selected: i == model.selection)
                                 .background {
-                                    if i == model.selection {
+                                    if i == model.selection, let skin {
+                                        // An inverse-video bar, like a DOS menu.
+                                        RoundedRectangle(cornerRadius: min(skin.corner, 6))
+                                            .fill(Color(nsColor: skin.textColor))
+                                            .matchedGeometryEffect(id: "selection", in: selectionNS)
+                                    } else if i == model.selection {
                                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                                             .fill(Brand.blue.opacity(0.2))
                                             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -285,6 +331,15 @@ struct LauncherView: View {
         }
     }
 
+    private func cased(_ s: String) -> String { skin?.cased(s) ?? s }
+
+    /// The skin's title bar at the switcher's size.
+    private static func panelBar(_ bar: Skin.TitleBar) -> Skin.TitleBar {
+        var b = bar
+        b.height = LauncherController.titleHeight
+        return b
+    }
+
     private var summary: [(label: String, state: AgentState)] {
         let waiting = store.agents.filter { $0.state == .waiting }.count
         let working = store.agents.filter { $0.state == .working }.count
@@ -301,28 +356,44 @@ struct LauncherView: View {
 struct LauncherRow: View {
     var agent: Agent
     var index: Int
+    var selected = false
     @ObservedObject private var settings = Settings.shared
 
     var body: some View {
+        let look = settings.activeLook
+        let skin = look.skin
+        let cased = { (s: String) in skin?.cased(s) ?? s }
+        let font = { (size: CGFloat, weight: Font.Weight) in skin?.font(size, weight) ?? .system(size: size, weight: weight) }
+        // On a skin the selected row is inverse video: the skin's background color on its text color.
+        let inverse = selected && skin != nil
+        let status: Color = if inverse {
+            Color(nsColor: skin!.backgroundColor)
+        } else if let skin, agent.state == .waiting {
+            Color(nsColor: look.dotColor(for: .waiting, dark: skin.colorScheme == .dark))
+        } else if agent.state == .waiting {
+            agent.state.style.swiftColor
+        } else {
+            .secondary
+        }
         HStack(spacing: 12) {
             StateDot(state: agent.state, size: 9)
                 .frame(width: 14)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 7) {
-                    Text(agent.displayTitle)
-                        .font(.system(size: 14, weight: .semibold))
+                    Text(cased(agent.displayTitle))
+                        .font(font(14, .semibold))
                         .lineLimit(1)
                     if agent.title != nil {
-                        Text(agent.project)
-                            .font(.system(size: 12, weight: .medium))
+                        Text(cased(agent.project))
+                            .font(font(12, .medium))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                    Text("\(agent.kind.displayName) · \(statusLine(agent, now: ctx.date))")
-                        .font(.system(size: 12))
-                        .foregroundStyle(agent.state == .waiting ? agent.state.style.swiftColor : .secondary)
+                    Text(cased("\(agent.kind.displayName) · \(statusLine(agent, now: ctx.date))"))
+                        .font(font(12, .regular))
+                        .foregroundStyle(status)
                         .lineLimit(1)
                 }
             }
@@ -330,11 +401,12 @@ struct LauncherRow: View {
             AppIcon(host: agent.host, size: 22)
             if index < 9 {
                 Text("⌘\(index + 1)")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(skin?.font(11, .medium) ?? .system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.tertiary)
                     .frame(width: 28)
             }
         }
+        .foregroundStyle(inverse ? Color(nsColor: skin!.backgroundColor) : skin.map { Color(nsColor: $0.textColor) } ?? .primary)
         .padding(.horizontal, 12)
         .frame(height: LauncherController.rowHeight)
         .stateLook(settings.activeLook.style(for: agent.state),

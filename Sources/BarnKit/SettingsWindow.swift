@@ -159,6 +159,10 @@ private struct GeneralPane: View {
             Text("A little tap with each sound, and as the switcher's selection moves under your pointer. You'll feel them on a Force Touch trackpad while a finger is on it.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
+            Toggle("confetti when an agent finishes", isOn: $settings.confetti)
+            Text("A burst of confetti over its card in the deck. Off with Reduce Motion.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
             if updater.isAvailable {
                 SectionTitle(text: "updates")
                 HStack {

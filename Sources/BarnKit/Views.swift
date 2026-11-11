@@ -7,16 +7,21 @@ struct StateDot: View {
     var state: AgentState
     var size: CGFloat = 10
     var look: Look?
+    /// The blink effect's off beat.
+    var inverted = false
     @ObservedObject private var settings = Settings.shared
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let style = (look ?? settings.activeLook).style(for: state)
+        let look = look ?? settings.activeLook
+        let style = look.style(for: state)
         // On a solid card the dot would be the card's own color, so it takes the text's instead.
-        let color = style.isSolid ? NSColor(style.contrast(dark: colorScheme == .dark)) : style.nsColor
-        DotLayer(color: color, glows: state != .idle,
-                 pulse: state == .waiting && !style.effects.isEmpty && !reduceMotion ? 1.4 / style.speed : nil)
+        let color = look.dotColor(for: state, dark: colorScheme == .dark, inverted: inverted)
+        // A skin's dot is a square pixel that holds still (its card blinks instead).
+        let skinned = look.skin != nil
+        DotLayer(color: color, glows: state != .idle && !skinned, square: skinned,
+                 pulse: state == .waiting && !skinned && !style.effects.isEmpty && !reduceMotion ? 1.4 / style.speed : nil)
             .frame(width: size, height: size)
     }
 }
@@ -26,12 +31,13 @@ struct StateDot: View {
 private struct DotLayer: NSViewRepresentable {
     var color: NSColor
     var glows: Bool
+    var square = false
     /// Seconds per fade out and back, or nil to hold still.
     var pulse: Double?
 
     func makeNSView(context: Context) -> DotView { DotView() }
     func updateNSView(_ view: DotView, context: Context) {
-        view.set(color: color, glows: glows, pulse: pulse)
+        view.set(color: color, glows: glows, square: square, pulse: pulse)
     }
 }
 
@@ -40,6 +46,7 @@ final class DotView: NSView {
     private let disc = CAShapeLayer()
     private var color: NSColor = .gray
     private var glows = false
+    private var square = false
     private var pulse: Double?
 
     override init(frame: NSRect) {
@@ -56,10 +63,11 @@ final class DotView: NSView {
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
-    func set(color: NSColor, glows: Bool, pulse: Double?) {
-        let changed = color != self.color || glows != self.glows || pulse != self.pulse
+    func set(color: NSColor, glows: Bool, square: Bool, pulse: Double?) {
+        let changed = color != self.color || glows != self.glows || square != self.square || pulse != self.pulse
         self.color = color
         self.glows = glows
+        self.square = square
         self.pulse = pulse
         if changed { redraw(restartPulse: true) }
     }
@@ -85,10 +93,10 @@ final class DotView: NSView {
         CATransaction.setDisableActions(true)
         fill.frame = bounds
         disc.frame = bounds
-        disc.path = CGPath(ellipseIn: bounds, transform: nil)
+        disc.path = square ? CGPath(rect: bounds, transform: nil) : CGPath(ellipseIn: bounds, transform: nil)
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            // Like SwiftUI's `color.gradient`: a touch lighter at the top.
-            let top = color.blended(withFraction: 0.18, of: .white) ?? color
+            // Like SwiftUI's `color.gradient`: a touch lighter at the top. Flat for pixels.
+            let top = square ? color : color.blended(withFraction: 0.18, of: .white) ?? color
             fill.colors = [top.cgColor, color.cgColor]
             root.shadowColor = color.cgColor
         }

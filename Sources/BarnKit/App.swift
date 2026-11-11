@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // No update prompts or settings windows popping up mid-recording.
         if !CommandLine.arguments.contains("--demo") { Updater.shared.start() }
         if DemoScript.isOn { DemoScript.run(store: store, launcher: launcher, deck: deck) }
+        if Showcase.group != nil { Showcase.run() }
         DispatchQueue.global(qos: .utility).async { Integration.all.forEach { $0.repairIfMoved() } }
 
         // Dev conveniences: `open barn.app --args --switcher --deck --settings`.
@@ -186,8 +187,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Self.item("floating deck", #selector(toggleDeck), settings.deckHotKey),
         ]
         items[1].state = deck.isVisible ? .on : .off
+        let looks = NSMenuItem(title: "look", action: nil, keyEquivalent: "")
+        looks.submenu = lookMenu()
         let prefs = NSMenuItem(title: "settings…", action: #selector(openSettings), keyEquivalent: ",")
-        var extras = [prefs]
+        var extras = [looks, prefs]
         if Updater.shared.isAvailable {
             let update = NSMenuItem(title: "check for updates…", action: #selector(checkForUpdates), keyEquivalent: "")
             update.isEnabled = Updater.shared.canCheck
@@ -215,6 +218,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if combo.modifiers & shiftKey != 0 { mask.insert(.shift) }
         item.keyEquivalentModifierMask = mask
         return item
+    }
+
+    /// Every look, glass and retro, one click to switch.
+    private func lookMenu() -> NSMenu {
+        let menu = NSMenu()
+        let settings = Settings.shared
+        var lastGroup: String?
+        for (id, look) in settings.allLooks {
+            let group = Look.group(of: id)
+            if let lastGroup, lastGroup != group { menu.addItem(.separator()) }
+            lastGroup = group
+            let item = NSMenuItem(title: look.name, action: #selector(pickLook(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = id
+            item.state = settings.activeLookID == id ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    @objc private func pickLook(_ sender: NSMenuItem) {
+        if let id = sender.representedObject as? String { Settings.shared.activeLookID = id }
     }
 
     @objc private func openAgent(_ sender: NSMenuItem) {
