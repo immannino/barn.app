@@ -4,14 +4,14 @@
     <title>barn</title>
     <link>https://barn.ope.cool/appcast.xml</link>
     <item>
-      <title>barn 0.3.1</title>
-      <pubDate>Thu, 29 Oct 2026 21:23:59 +0000</pubDate>
-      <sparkle:version>18</sparkle:version>
-      <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
+      <title>barn 0.7.0</title>
+      <pubDate>Wed, 11 Nov 2026 09:23:38 +0000</pubDate>
+      <sparkle:version>21</sparkle:version>
+      <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:fullReleaseNotesLink>https://github.com/immannino/barn.app/releases/tag/v0.3.1</sparkle:fullReleaseNotesLink>
-      <enclosure url="https://github.com/immannino/barn.app/releases/download/v0.3.1/barn-0.3.1.zip"
-                 type="application/octet-stream" sparkle:edSignature="UBXqq0eWkuMG+9Xu6/8QUQEfvb4EMVb/+BZ3SyV4Bxqn8MvKh/sZeNfxMKIAhYSSsouSGS7Ta2V7U8f2b8qTBg==" length="4846379" />
+      <sparkle:fullReleaseNotesLink>https://github.com/immannino/barn.app/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
+      <enclosure url="https://github.com/immannino/barn.app/releases/download/v0.7.0/barn-0.7.0.zip"
+                 type="application/octet-stream" sparkle:edSignature="MnbpivjroRKXF91eiAQ9ZJ5ZOYTYTOmdqEuscT1CFNw/SIwlgiwRlkla0a/fyLpao1GxhpTqN20/hr8VN5fMAA==" length="6053704" />
     </item>
   </channel>
 </rss>
